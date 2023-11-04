@@ -12,11 +12,16 @@ link_directories(D:/SFML/lib)
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
+		
+		src/game.h
+		src/player.h
+		src/map.h
+		src/view.h
         )
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/src/resources 
-	$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources)
+	$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources ../build/resources)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openal32 sfml-window sfml-audio sfml-system sfml-graphics)
