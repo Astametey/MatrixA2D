@@ -12,10 +12,16 @@ link_directories(D:/SFML/lib)
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
-		src/game.h
 		
+		
+		src/game.h
 		src/level.h
 		src/view.h
+		src/entity.h
+		src/enemies.h
+		src/player.h
+		
+		src/pathfindingA.h
 		
 		src/tinyxml/tinystr.cpp
 		src/tinyxml/tinyxml.cpp

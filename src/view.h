@@ -8,10 +8,10 @@ int LEVEL_WIDTH;
 int LEVEL_HEIGHT;
 
 // Глобальные размеры окна 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 1280;
+const int SCREEN_HEIGHT = 720;
 
-sf::View view;
+sf::View main_view;
 
 void setPlayerCoordinateForView(float x, float y) {
 	float tempX = x; float tempY = y;
@@ -20,8 +20,17 @@ void setPlayerCoordinateForView(float x, float y) {
 	//if (y < 240) tempY = 240;//верхнюю сторону
 	if (y > 624) tempY = 624;//нижнюю стороню.для новой карты
 
-	view.setCenter(tempX, tempY);
+	main_view.setCenter(tempX, tempY);
 }
+
+// Получаем границы view (видимой области)
+sf::FloatRect viewBounds(
+	main_view.getCenter().x - main_view.getSize().x / 2,
+	main_view.getCenter().y - main_view.getSize().y / 2,
+	main_view.getSize().x,
+	main_view.getSize().y
+);
+
 
 
 #endif // _VIEW_H_
