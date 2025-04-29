@@ -13,13 +13,14 @@ link_directories(D:/SFML/lib)
 add_executable(${PROJECT_NAME}
         src/main.cpp
 		
-		
 		src/game.h
 		src/level.h
 		src/view.h
 		src/entity.h
 		src/enemies.h
 		src/player.h
+		src/inventory.h
+		src/resurce_init.h
 		
 		src/pathfindingA.h
 		

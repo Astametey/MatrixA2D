@@ -86,20 +86,20 @@ void Level::LoadObjects(TiXmlElement* map) {
 		std::cout << "Found an object group." << std::endl;
 		
 		for (TiXmlElement* objectElement = objectGroupElement->FirstChildElement("object"); objectElement != nullptr; objectElement = objectElement->NextSiblingElement("object")) {
-			std::cout << "Found an object: ";
+			//std::cout << "Found an object: ";
 			Object object;
 			object.name = objectElement->Attribute("name") ? objectElement->Attribute("name") : "";
-			std::cout << "Name: " << object.name << ", ";
+			//std::cout << "Name: " << object.name << ", ";
 
 			object.type = objectElement->Attribute("type") ? objectElement->Attribute("type") : "";
-			std::cout << "Type: " << object.type << std::endl;
+			//std::cout << "Type: " << object.type << std::endl;
 
 			object.rect.left = atoi(objectElement->Attribute("x"));
 			object.rect.top = atoi(objectElement->Attribute("y"));
 			object.rect.width = atoi(objectElement->Attribute("width"));
 			object.rect.height = atoi(objectElement->Attribute("height"));
 
-			std::cout << "Object rectangle: (" << object.rect.left << ", " << object.rect.top << ") - (" << object.rect.width << ", " << object.rect.height << ")" << std::endl;
+			//std::cout << "Object rectangle: (" << object.rect.left << ", " << object.rect.top << ") - (" << object.rect.width << ", " << object.rect.height << ")" << std::endl;
 
 			// Загрузка свойств объекта
 			TiXmlElement* propertiesElement = objectElement->FirstChildElement("properties");
@@ -109,15 +109,15 @@ void Level::LoadObjects(TiXmlElement* map) {
 					std::string propertyName = propertyElement->Attribute("name");
 					std::string propertyValue = propertyElement->Attribute("value");
 					object.properties[propertyName] = propertyValue;
-					std::cout << "  Property: " << propertyName << " = " << propertyValue << std::endl;
+					//std::cout << "  Property: " << propertyName << " = " << propertyValue << std::endl;
 				}
 			}
 			else {
-				std::cout << "Object has no properties." << std::endl;
+				//std::cout << "Object has no properties." << std::endl;
 			}
 
 			objects.push_back(object);
-			std::cout << "Object added to the objects vector." << std::endl;
+			//std::cout << "Object added to the objects vector." << std::endl;
 		}
 	}
 
@@ -235,11 +235,11 @@ bool Level::LoadFromFile(std::string filename, std::string tileset_path, sf::Ren
 		for (int i = 0; i < layer.tileGID.size(); i++)
 		{
 			
-			std::cout << layer.tileGID[i] << " ";
+			//std::cout << layer.tileGID[i] << " ";
 			
 			if ((i + 1) % height == 0)
 			{
-				std::cout << std::endl;
+				//std::cout << std::endl;
 			}
 			
 		}

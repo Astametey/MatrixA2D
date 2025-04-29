@@ -21,14 +21,20 @@ public:
         Attack,     // Атака 
         PowerAttack,// Усиленная Атака
         Hit,        // Получение урона
-        Death       // Смерть
+        Death,      // Смерть
+        Bounce      // Отталкивание
     };
 
-    
+
 
     Enemy(float x, float y, float width, float height, Level& lvl,
         const std::string& texturePath = "resources/Entities/cat.png")
         : Entity(x, y, width, height), level(lvl) {
+        pushForce = 300.0f;
+        bounceDuration = 0.2f;
+        currentBounceTime = 0.0f;
+        bounceVelocity = sf::Vector2f(0, 0);
+
         shape.setFillColor(sf::Color::Magenta);
         speed = 25.0f;
         pathIndex = 0;
@@ -37,6 +43,9 @@ public:
         currentState = AnimationType::Idle;
         attackCooldown = 0.0f;
         attackAreaSize = sf::Vector2f(16.0f, 16.0f); // Размер области атаки
+
+        deathAnimationFinished = false;
+        currentAnimation = AnimationType::Idle;
 
         // Пытаемся загрузить текстуру из переданного пути
         if (!texture.loadFromFile(texturePath)) {
@@ -65,25 +74,51 @@ public:
 
 
     ~Enemy() override {}
+    void Set_type_enemy(std::string type)
+    {
+        if (type == "orc") {
+         setCollisionSize(16, 16);
+         setMaxHealth(10);
+         
+         if (!texture.loadFromFile("resources/Entities/Orc-Sheet.png")) {
+             // Если не удалось - используем запасной вариант (зеленый цвет)
+             shape.setFillColor(sf::Color::Green);
+         }
+         else {
+             sprite.setTexture(texture);
+             frameWidth = 38;  // Ширина одного кадра
+             frameHeight = 33; // Высота одного кадра
+             framesPerAnimation = 6; // Например, 4 кадра на анимацию
+             currentFrame = 0;
+             animationSpeed = 0.1f; // 100ms
+             currentAnimation = AnimationType::Idle;
+             sprite.setTextureRect(sf::IntRect(0, 0, frameWidth, frameHeight));
+             shape.setFillColor(sf::Color::Transparent);
+         }
+
+
+        };
+    };
 
     // Метод для нанесения урона
     void takeDamage(int damage) {
-        // Добавляем проверку на состояние Death
         if (isDead() || currentState == AnimationType::Death)
             return;
 
         health -= damage;
-        std::cout << "Enemy took " << damage << " damage. Health: " << health << "/" << maxHealth << std::endl;
 
         if (health <= 0) {
             health = 0;
-            std::cout << "Enemy died! Playing death animation..." << std::endl;
             setState(AnimationType::Death);
-            // Отключаем коллизию сразу при смерти
+            setAnimation(AnimationType::Death); // Явно устанавливаем анимацию
             setCollisionSize(0, 0);
+            currentFrame = 0;
+            deathAnimationFinished = false;
+            velocity = sf::Vector2f(0, 0); // Останавливаем движение
         }
         else {
             setState(AnimationType::Hit);
+            setAnimation(AnimationType::Hit);
         }
     }
 
@@ -93,8 +128,42 @@ public:
 
     void update(float deltaTime, const Player& player, const std::vector<std::unique_ptr<Enemy>>& allEnemies) {
         if (isDead()) {
+            if (currentState != AnimationType::Death) {
+                setState(AnimationType::Death);
+            }
             updateAnimation();
             return;
+        }
+
+        // Обработка отталкивания
+        if (currentState == AnimationType::Bounce) {
+            currentBounceTime -= deltaTime;
+            if (currentBounceTime <= 0) {
+                setState(AnimationType::Walk);
+            }
+            else {
+                // Применяем замедление отталкивания
+                float slowdown = currentBounceTime / bounceDuration;
+                sf::Vector2f newVelocity = bounceVelocity * slowdown;
+
+                // Проверяем следующую позицию
+                sf::Vector2f newPos = position + newVelocity * deltaTime;
+
+                if (!checkCollisionWithSolids(newPos)) {
+                    // Если нет столкновения - двигаемся
+                    velocity = newVelocity;
+                    Entity::update(deltaTime);
+                }
+                else {
+                    // Если есть столкновение - останавливаем отталкивание
+                    currentBounceTime = 0;
+                    setState(AnimationType::Walk);
+                }
+
+                sprite.setPosition(position);
+                updateAnimation();
+                return;
+            }
         }
 
         // Обновляем таймер перезарядки атаки
@@ -132,7 +201,7 @@ public:
             sprite.setScale(1.f, 1.f);
         }
 
-        sprite.setPosition(position);
+
 
         // Обработка разных состояний
         switch (currentState) {
@@ -155,6 +224,8 @@ public:
                 onPlayerCollision(player);
             }
         }
+
+        sprite.setPosition(position);
 
         Entity::update(deltaTime);
 
@@ -191,7 +262,7 @@ public:
         if (currentState != newState) {
             currentFrame = 0;
             currentState = newState;
-            currentAnimation = newState; // Синхронизируем состояние и анимацию
+            currentAnimation = newState; // Синхронизируем анимацию с состоянием
 
             // Сбрасываем флаг завершения анимации смерти, если вышли из состояния смерти
             if (newState != AnimationType::Death) {
@@ -216,6 +287,10 @@ public:
                 break;
             case AnimationType::Walk:
                 velocity = sf::Vector2f(0, 0);
+                break;
+            case AnimationType::Bounce:
+                currentAnimation = AnimationType::Hit; // Или создайте отдельную анимацию для отталкивания
+                stateTimer = bounceDuration;
                 break;
             }
         }
@@ -248,13 +323,13 @@ public:
 
     void updateAnimation() {
         if (animationClock.getElapsedTime().asSeconds() >= animationSpeed) {
-            if (currentState == AnimationType::Death) {
+            if (currentAnimation == AnimationType::Death) {
                 if (!deathAnimationFinished) {
                     if (currentFrame < framesPerAnimation - 1) {
                         currentFrame++;
                     }
                     else {
-                        deathAnimationFinished = true; // Анимация завершена
+                        deathAnimationFinished = true;
                     }
                 }
             }
@@ -262,7 +337,8 @@ public:
                 currentFrame = (currentFrame + 1) % framesPerAnimation;
             }
 
-            int animationRow = static_cast<int>(currentState);
+            // Всегда обновляем текстуру, даже для смерти
+            int animationRow = static_cast<int>(currentAnimation);
             sprite.setTextureRect(sf::IntRect(
                 currentFrame * frameWidth,
                 animationRow * frameHeight,
@@ -272,7 +348,7 @@ public:
             animationClock.restart();
         }
     }
-    
+
 
     // Методы для обработки состояний
     void handleIdleState(float deltaTime, const Player& player) {
@@ -318,24 +394,65 @@ public:
 
             if (length > 0) {
                 direction /= length;
-                // Проверяем, можно ли двигаться в этом направлении
                 sf::Vector2f nextPos = position + direction * speed * deltaTime;
                 if (isPositionWalkable(nextPos)) {
                     velocity = direction * speed;
-                    path.clear(); // Очищаем путь, так как идём напрямую
+                    path.clear();
                     return;
                 }
             }
         }
 
-        // Если путь заблокирован или прямое движение невозможно - используем поиск пути
-        if (path.empty() || calculateDistance(lastPlayerPosition, player.getPosition()) > recalculatePathThreshold) {
-            calculatePath(player);
-            lastPlayerPosition = player.getPosition();
+        // Проверяем, нужно ли пересчитать путь
+        bool shouldRecalculate = path.empty() ||
+            calculateDistance(lastPlayerPosition, player.getPosition()) > recalculatePathThreshold;
+
+        // Если нужно пересчитать путь
+        if (shouldRecalculate) {
+            // Рассчитываем новый путь до игрока
+            auto newPath = findPath(position, player.getPosition(), level);
+
+            if (!newPath.empty()) {
+                // Если у нас был предыдущий путь, пытаемся сохранить прогресс
+                if (!path.empty() && pathIndex > 0) {
+                    // Ищем ближайшую точку в новом пути к нашей текущей цели
+                    size_t closestIndex = 0;
+                    float minDistance = std::numeric_limits<float>::max();
+
+                    // Начинаем поиск со второй точки (индекс 1), чтобы не возвращаться в начало
+                    for (size_t i = 1; i < newPath.size(); ++i) {
+                        float dist = calculateDistance(path[pathIndex], newPath[i]);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestIndex = i;
+                        }
+                    }
+
+                    // Если нашли подходящую точку, продолжаем с нее
+                    if (minDistance < level.tileWidth * 1.5f) { // Пороговое расстояние = 1.5 тайла
+                        pathIndex = closestIndex;
+                    }
+                    else {
+                        pathIndex = 1; // Начинаем со второй точки, если не нашли подходящей
+                    }
+                }
+                else {
+                    pathIndex = 1; // Начинаем сразу со второй точки пути
+                }
+
+                path = newPath;
+                lastPlayerPosition = player.getPosition();
+            }
         }
 
-        // Двигаемся по пути, если он есть
+        // Двигаемся по пути
         if (!path.empty()) {
+            // Если мы на последней точке пути, но игрок ушел дальше - очищаем путь
+            if (pathIndex >= path.size() - 1 && distanceToPlayer > recalculatePathThreshold) {
+                path.clear();
+                return;
+            }
+
             sf::Vector2f target = path[pathIndex];
             sf::Vector2f direction = target - position;
             float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
@@ -371,57 +488,116 @@ public:
         }
     }
 
-    
+
 
     // Проверка столкновения с игроком
     bool checkPlayerCollision(const Player& player) const {
-        // Всегда проверяем столкновение с областью атаки, если игрок атакует
-        if (player.isAttacking) {
-            sf::FloatRect attackBounds = player.getAttackAreaBounds();
+        // Проверяем столкновение с оружием, если игрок атакует и имеет оружие
+        if (player.isAttacking && player.isMeleeEquipped()) {
+            sf::FloatRect weaponBounds = player.meleeWeapon.sprite.getGlobalBounds();
             sf::FloatRect enemyBounds = this->getGlobalBounds();
-            if (attackBounds.intersects(enemyBounds)) {
+            if (weaponBounds.intersects(enemyBounds)) {
+                return true;
+            }
+        }
+        // Проверяем столкновение с рукой, если игрок атакует, но оружие не экипировано
+        else if (player.isAttacking && !player.isMeleeEquipped()) {
+            sf::FloatRect handBounds = player.frontHandSprite.getGlobalBounds(); // Берем переднюю руку
+            sf::FloatRect enemyBounds = this->getGlobalBounds();
+            if (handBounds.intersects(enemyBounds)) {
                 return true;
             }
         }
 
-        // Проверяем обычное столкновение с игроком
+        // Проверяем обычное столкновение с игроком (как и раньше)
         sf::FloatRect enemyBounds = this->getGlobalBounds();
         sf::FloatRect playerBounds = player.getGlobalBounds();
         return enemyBounds.intersects(playerBounds);
     }
+    bool checkCollisionWithSolids(const sf::Vector2f& newPos) const {
+        sf::FloatRect newBounds(newPos.x - collisionSize.x / 2, newPos.y - collisionSize.y / 2,
+            collisionSize.x, collisionSize.y);
+
+        // Проверяем все углы нового положения
+        std::vector<sf::Vector2f> points = {
+            {newBounds.left, newBounds.top},
+            {newBounds.left + newBounds.width, newBounds.top},
+            {newBounds.left, newBounds.top + newBounds.height},
+            {newBounds.left + newBounds.width, newBounds.top + newBounds.height}
+        };
+
+        for (const auto& point : points) {
+            int tileX = static_cast<int>(point.x / level.tileWidth);
+            int tileY = static_cast<int>(point.y / level.tileHeight);
+
+            if (!isTileWalkable(tileX, tileY, level)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     // Обработка столкновения с игроком
     void onPlayerCollision(const Player& player) {
-        if (player.isAttacking) {
-            sf::FloatRect attackBounds = player.getAttackAreaBounds();
+        // Обработка столкновения с оружием, если оно есть
+        if (player.isAttacking && player.isMeleeEquipped()) {
+            sf::FloatRect weaponBounds = player.meleeWeapon.sprite.getGlobalBounds();
             sf::FloatRect enemyBounds = this->getGlobalBounds();
 
-            if (attackBounds.intersects(enemyBounds)) {
+            if (weaponBounds.intersects(enemyBounds)) {
                 if (!wasHitThisAttack) {
                     takeDamage(player.getAttackDamage());
                     wasHitThisAttack = true;
 
-                    // Рассчитываем направление отталкивания от центра атаки
-                    sf::Vector2f attackCenter(
-                        attackBounds.left + attackBounds.width / 2,
-                        attackBounds.top + attackBounds.height / 2
+                    // Рассчитываем направление отталкивания от оружия
+                    sf::Vector2f weaponCenter(
+                        weaponBounds.left + weaponBounds.width / 2,
+                        weaponBounds.top + weaponBounds.height / 2
                     );
 
-                    sf::Vector2f direction = position - attackCenter;
+                    sf::Vector2f direction = position - weaponCenter;
                     float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
                     if (length > 0) {
                         direction /= length;
                     }
 
-                    // Увеличиваем силу отталкивания
-                    float pushForce = 3000.0f; // Можно регулировать это значение
-                    velocity = direction * pushForce;
+                    // Устанавливаем параметры отталкивания
+                    bounceVelocity = direction * pushForce;
+                    currentBounceTime = bounceDuration;
+                    setState(AnimationType::Bounce);
+                    setAnimation(AnimationType::Hit);
+                    return;
+                }
+            }
+        }
+        // Обработка столкновения с рукой, если оружие отсутствует
+        else if (player.isAttacking && !player.isMeleeEquipped()) {
+            sf::FloatRect handBounds = player.frontHandSprite.getGlobalBounds();
+            sf::FloatRect enemyBounds = this->getGlobalBounds();
 
-                    // Устанавливаем состояние Hit, только если враг еще жив
-                    if (!isDead()) {
-                        setState(AnimationType::Hit);
+            if (handBounds.intersects(enemyBounds)) {
+                if (!wasHitThisAttack) {
+                    takeDamage(player.getBaseDamage(false)); // Уменьшенный урон рукой
+                    wasHitThisAttack = true;
+
+                    // Рассчитываем направление отталкивания от руки
+                    sf::Vector2f handCenter(
+                        handBounds.left + handBounds.width / 2,
+                        handBounds.top + handBounds.height / 2
+                    );
+
+                    sf::Vector2f direction = position - handCenter;
+                    float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+                    if (length > 0) {
+                        direction /= length;
                     }
 
+                    // Устанавливаем параметры отталкивания
+                    bounceVelocity = direction * (pushForce / 2); // Уменьшенное отталкивание
+                    currentBounceTime = bounceDuration;
+                    setState(AnimationType::Bounce);
+                    setAnimation(AnimationType::Hit);
                     return;
                 }
             }
@@ -495,9 +671,13 @@ private:
     float attackDistance = 14.0f; // Уменьшаем дистанцию атаки
     float stopDistance = 18.0f;   // Дистанция остановки чуть больше атаки
 
-    bool wasHitThisAttack = false; // Добавьте это в приватные поля
+    bool wasHitThisAttack = false;
     float knockbackSlowdown = 0.5f; // Коэффициент замедления (0.5 = 50% скорости)
-    
+
+    float pushForce = 0.0f; // Увеличьте это значение по необходимости
+    float bounceDuration = 0.3f; // Длительность отталкивания
+    float currentBounceTime = 0.0f;
+    sf::Vector2f bounceVelocity;
 
     // Добавляем новые приватные переменные
     float attackCooldown;       // Таймер перезарядки атаки
@@ -516,7 +696,7 @@ private:
     int currentFrame;
     int frameWidth;
     int frameHeight;
-    
+
     AnimationType currentAnimation;
     sf::Clock animationClock;
     float animationSpeed; // Время между кадрами в секундах
@@ -527,6 +707,7 @@ private:
     sf::Vector2f lastPlayerPosition;
     float pathUpdateDistance = 64.0f; // Расстояние, которое должен пройти игрок для обновления пути
     // Helper function to calculate distance
+
     float calculateDistance(const sf::Vector2f& pos1, const sf::Vector2f& pos2) const {
         float dx = pos1.x - pos2.x;
         float dy = pos1.y - pos2.y;
@@ -647,21 +828,36 @@ protected:
     }
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        // Рисуем спрайт в любом случае (даже для мертвых врагов)
-        if (texture.getSize().x > 0) {
-            target.draw(sprite, states);
-        }
-        else {
-            sf::RectangleShape debugRect(visualSize);
-            debugRect.setPosition(position);
-            debugRect.setOrigin(visualSize.x / 2, visualSize.y / 2);
-            debugRect.setFillColor(sf::Color::Green);
-            target.draw(debugRect, states);
+
+        if (!(isDead() && deathAnimationFinished)) {
+            if (texture.getSize().x > 0) {
+                target.draw(sprite, states);
+            }
+            else {
+                //sf::RectangleShape debugRect(visualSize);
+                //debugRect.setPosition(position);
+                //debugRect.setOrigin(visualSize.x / 2, visualSize.y / 2);
+                //debugRect.setFillColor(sf::Color::Green);
+                //target.draw(debugRect, states);
+            }
         }
 
-        // Рисуем остальные элементы только для живых врагов
         if (!isDead()) {
-            // Полоска здоровья
+            // Рисуем спрайт в любом случае (даже для мертвых врагов)
+            if (texture.getSize().x > 0) {
+                target.draw(sprite, states);
+            }
+            else {
+                sf::RectangleShape debugRect(visualSize);
+                debugRect.setPosition(position);
+                debugRect.setOrigin(visualSize.x / 2, visualSize.y / 2);
+                debugRect.setFillColor(sf::Color::Green);
+                target.draw(debugRect, states);
+            }
+
+            // Рисуем остальные элементы только для живых врагов
+
+                // Полоска здоровья
             float clampedHealth = std::max(0.0f, std::min(static_cast<float>(health), static_cast<float>(maxHealth)));
             const float healthBarWidth = 30.0f;
             const float healthBarHeight = 5.0f;
@@ -689,7 +885,10 @@ protected:
             target.draw(hitbox, states);
 
             // Область атаки
-            if (currentState == AnimationType::Attack) {
+            // *************** Изменено ***************
+            if (currentState == AnimationType::Attack &&
+                currentFrame >= framesPerAnimation / 2) // Проверяем, что кадр находится в середине анимации
+            {
                 sf::RectangleShape attackArea(attackAreaSize);
                 attackArea.setPosition(position);
                 attackArea.setOrigin(isFacingRight ?
@@ -698,7 +897,8 @@ protected:
                 attackArea.setFillColor(sf::Color(255, 0, 0, 100));
                 target.draw(attackArea, states);
             }
-        }
+            // *************** Конец изменений ***************
+        };
 
         // Рисуем путь
         if (!path.empty()) {
@@ -717,8 +917,9 @@ protected:
             target.draw(targetMarker, states);
         }
 
+
     }
 };
 
 
-#endif 
+#endif

@@ -4,10 +4,13 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <iostream>
+#include <random> // Для генерации случайных чисел
 
 #include "level.h"
 #include "pathfindingA.h"
 
+//________GLOBAL VALUE________
+sf::Vector2f GlobalmousePos;
 
 // Базовый класс для всех игровых сущностей
 class Entity : public sf::Drawable

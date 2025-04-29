@@ -1,31 +1,5 @@
-#include "view.h"
-#include "level.h"
-#include "player.h"
-#include "enemies.h"
+#include "resurce_init.h";
 
-//________GLOBAL VALUE________
-
-
-Level test_level;
-
-//--Entity
-std::vector<std::unique_ptr<Enemy>> enemies;
-
-//--Player
-Player player(32, 32,
-    16, 16,  // collision width/height (меньшие значения)
-    16, 32,  // visual width/height (размер текстуры)
-    test_level);
-Armor head;
-Armor body;
-Armor legs;
-Armor shoes;
-Weapon sword;
-
-
-//----Timers
-sf::Clock main_clock;
-float deltaTime;
 
 void cleanup() {
     
@@ -33,72 +7,15 @@ void cleanup() {
 }
 
 
-//Инициализация ресурсов
-void resurce_init(sf::RenderWindow* l_win)
-{
-    // Инициализация меню
-    
+void game_step(float deltaT, sf::RenderWindow* win) {
+    player.mousePos = GlobalmousePos;
+    // Сохраняем текущую позицию
+    sf::Vector2f currentPosition = player.getPosition();
 
+    // Обновляем позицию игрока
+    player.update(deltaTime);
 
-	test_level.LoadFromFile("resources//levels//fores_level_0.tmx", "resources//levels//forest_tile_set.png", l_win);
-	main_view.reset(sf::FloatRect(0, 0, 640, 360));
-	//Player
-	// Load armor textures
-    head.loadTexture("resources/Entities/helmet.png"); // Replace with your texture path
-    head.set_armor_type(2, 0);
-	player.setArmorHead(head);
-     
-    body.loadTexture("resources/Entities/shirts.png"); // Replace with your texture path
-	player.setArmorBody(body);
-
-    legs.loadTexture("resources/Entities/pants.png"); // Replace with your texture path
-    player.setArmorLegs(legs);
-
-    shoes.loadTexture("resources/Entities/shoes.png"); // Replace with your texture path
-    player.setArmorShoes(shoes);
-
-
-
-	// Load weapon textures
-	sword.loadTexture("resources/Entities/sword.png");
-	player.setMeleeWeapon(sword);
-    sword.damage = 2;
-
-	// Очищаем вектор, если он уже был заполнен
-	enemies.clear();
-
-	// Добавляем врагов с разными координатами
-	enemies.push_back(std::make_unique<Enemy>(100.0f, 400.0f, 32.0f, 32.0f, test_level,"resources/Entities/Orc-Sheet.png"));  // Враг 1
-    enemies.push_back(std::make_unique<Enemy>(700.0f, 150.0f, 32.0f, 32.0f, test_level,"resources/Entities/Orc-Sheet.png"));  // Враг 2
-    enemies.push_back(std::make_unique<Enemy>(400.0f, 300.0f, 38.0f, 33.0f, test_level, "resources/Entities/Orc-Sheet.png"));  // Враг 3
-	
-	// Добавьте столько врагов, сколько нужно, с разными координатами
-        if (!enemies.empty()) {
-            Enemy* enemy = enemies[0].get(); // Получаем сырой указатель на объект Enemy
-            // Теперь мы можем использовать enemy для вызова методов:
-            enemy = enemies[0].get();
-            enemy->setCollisionSize(16, 16);
-            enemy->setMaxHealth(10);
-            enemy = enemies[1].get();
-            enemy->setCollisionSize(16, 16);
-            enemy->setMaxHealth(10);
-            enemy = enemies[2].get();
-            enemy->setCollisionSize(16, 16);
-            enemy->setMaxHealth(10);
-        }
-        else {
-            std::cout << "Вектор enemies пуст!" << std::endl;
-        }
-
-}
-
-
-void game_step(float deltaT) {
-
-    const sf::Vector2f currentPosition = player.getPosition();
-    player.update(deltaT);
-
-    // Проверка столкновений игрока
+    // Создаем прямоугольник коллизии игрока
     sf::FloatRect playerCollisionRect(
         player.getPosition().x - player.getCollisionSize().x / 2,
         player.getPosition().y - player.getCollisionSize().y / 2,
@@ -106,16 +23,42 @@ void game_step(float deltaT) {
         player.getCollisionSize().y
     );
 
-    bool collision = false;
+
+    // Обработка коллизий
     for (const auto& object : test_level.getObjects()) {
         if (object.type == "solid" && playerCollisionRect.intersects(object.rect)) {
-            collision = true;
-            break;
-        }
-    }
+            // Вычисляем перекрытие по каждой оси
+            sf::FloatRect intersection;
+            playerCollisionRect.intersects(object.rect, intersection);
 
-    if (collision) {
-        player.setPosition(currentPosition);
+            // Определяем, какая ось перекрыта больше
+            float xOverlap = intersection.width;
+            float yOverlap = intersection.height;
+
+            // Корректируем позицию игрока, чтобы предотвратить прохождение сквозь стену
+            if (xOverlap < yOverlap) {
+                // Коллизия по оси X (слева или справа)
+                if (player.getVelocity().x > 0) {
+                    // Движение вправо, столкновение справа
+                    player.setPosition(sf::Vector2f(player.getPosition().x - xOverlap, player.getPosition().y));
+                }
+                else {
+                    // Движение влево, столкновение слева
+                    player.setPosition(sf::Vector2f(player.getPosition().x + xOverlap, player.getPosition().y));
+                }
+            }
+            else {
+                // Коллизия по оси Y (сверху или снизу)
+                if (player.getVelocity().y > 0) {
+                    // Движение вниз, столкновение снизу
+                    player.setPosition(sf::Vector2f(player.getPosition().x, player.getPosition().y - yOverlap));
+                }
+                else {
+                    // Движение вверх, столкновение сверху
+                    player.setPosition(sf::Vector2f(player.getPosition().x, player.getPosition().y + yOverlap));
+                }
+            }
+        }
     }
 
     // Обновление врагов
@@ -126,19 +69,26 @@ void game_step(float deltaT) {
         if (!enemy->isDead() && enemy->checkPlayerCollision(player)) {
             enemy->onPlayerCollision(player);
         }
+
+        
     }
+
+    std::for_each(enemies.begin(), enemies.end(), [&](std::unique_ptr<Enemy>& enemy_ptr) {
+        Enemy& enemy = *enemy_ptr; // Получаем ссылку на объект Enemy
+
+        if (enemy.isDead() && enemy.isDeathAnimationFinished()) {
+            respawnEnemy(enemy, &test_level); // Передаем указатель на уровень
+        }
+        });
 
     main_view.setCenter(player.getPosition());
 
-    // Удаляем мёртвых врагов только после завершения анимации смерти
-    enemies.erase(
-        std::remove_if(enemies.begin(), enemies.end(),
-            [](const std::unique_ptr<Enemy>& enemy) {
-                // Удаляем врага, только если он мертв и анимация смерти завершена
-                return enemy->isDead() && enemy->isDeathAnimationFinished();
-            }),
-        enemies.end()
-    );
+    if (inventoryOpen) {
+        win->setView(win->getDefaultView());
+        drawInventory(win, playerInventory);
+        drawDraggedItem(win);
+        win->setView(main_view); // Возвращаем основную камеру
+    }
 
 };
 
@@ -179,9 +129,114 @@ void game_draw(float deltaT, sf::RenderWindow* win) {
         }
     }
 
+    if (inventoryOpen) {
+        drawInventory(win, playerInventory);
+    }
+
 };
 
-void resurce_delete()
+void drawInventory(sf::RenderWindow* win, Inventory& inventory) {
+    // Сохраняем текущий вид
+    sf::View defaultView = win->getView();
+
+    // Устанавливаем вид для интерфейса
+    win->setView(win->getDefaultView());
+
+    // Рисуем фон инвентаря (увеличили высоту для параметров)
+    sf::RectangleShape inventoryBackground(sf::Vector2f(600, 500));
+    inventoryBackground.setFillColor(sf::Color(70, 70, 70, 200));
+    inventoryBackground.setPosition(100, 50);
+    win->draw(inventoryBackground);
+
+    // Рисуем слоты инвентаря
+    const auto& items = inventory.getItems();
+    for (int y = 0; y < items.size(); ++y) {
+        for (int x = 0; x < items[y].size(); ++x) {
+            sf::RectangleShape slot(sf::Vector2f(50, 50));
+            slot.setPosition(110 + x * 55, 130 + y * 55);
+            slot.setFillColor(sf::Color(100, 100, 100));
+            slot.setOutlineThickness(1);
+            slot.setOutlineColor(sf::Color::White);
+            win->draw(slot);
+
+            if (!items[y][x].isEmpty()) {
+                sf::Sprite itemSprite = items[y][x].item->getSprite();
+                itemSprite.setPosition(115 + x * 55, 135 + y * 55);
+
+                // Масштабируем предметы под размер ячейки
+                float scaleX = 40.0f / itemSprite.getLocalBounds().width;
+                float scaleY = 40.0f / itemSprite.getLocalBounds().height;
+                itemSprite.setScale(scaleX, scaleY);
+
+                win->draw(itemSprite);
+
+                if (items[y][x].quantity > 1) {
+                    sf::Text quantityText;
+                    quantityText.setString(std::to_string(items[y][x].quantity));
+                    quantityText.setPosition(140 + x * 55, 140 + y * 55);
+                    quantityText.setCharacterSize(12);
+                    quantityText.setFont(base_font);
+                    quantityText.setFillColor(sf::Color::White);
+                    win->draw(quantityText);
+                }
+            }
+        }
+    }
+
+    // Рисуем слоты экипировки с подписями
+    const std::vector<std::string> slotNames = { "Head", "Body", "Legs", "Shoes", "Weapont", "bow" };
+    const auto& equipment = inventory.getEquipment();
+    for (int i = 0; i < equipment.size(); ++i) {
+        sf::RectangleShape slot(sf::Vector2f(50, 50));
+        slot.setPosition(110 + i * 55, 60);
+        slot.setFillColor(sf::Color(150, 150, 150));
+        slot.setOutlineThickness(1);
+        slot.setOutlineColor(sf::Color::Yellow);
+        win->draw(slot);
+
+        // Подпись слота
+        sf::Text slotText;
+        slotText.setString(slotNames[i]);
+        slotText.setCharacterSize(12);
+        slotText.setFont(base_font);
+        slotText.setFillColor(sf::Color::White);
+        slotText.setPosition(110 + i * 55, 112);
+        win->draw(slotText);
+
+        if (!equipment[i].isEmpty()) {
+            sf::Sprite itemSprite = equipment[i].item->getSprite();
+            itemSprite.setPosition(115 + i * 55, 65);
+
+            // Масштабируем предметы экипировки
+            float scaleX = 40.0f / itemSprite.getLocalBounds().width;
+            float scaleY = 40.0f / itemSprite.getLocalBounds().height;
+            itemSprite.setScale(scaleX, scaleY);
+
+            win->draw(itemSprite);
+        }
+    }
+
+    // Отображаем параметры игрока
+    sf::Text statsText;
+    statsText.setFont(base_font);
+    statsText.setCharacterSize(16);
+    statsText.setFillColor(sf::Color::White);
+    statsText.setPosition(110, 410);
+
+    std::string statsStr = "Parameters:\n";
+    statsStr += "Defense: " + std::to_string(static_cast<int>(player.getDefense())) + "\n";
+    statsStr += "Damage: " + std::to_string(static_cast<int>(player.getBaseDamage())) + "\n";
+    statsStr += "Crit: " + std::to_string(static_cast<int>(player.getCriticalChance() * 100)) + " %";
+
+    statsText.setString(statsStr);
+    win->draw(statsText);
+
+    // Восстанавливаем вид
+    win->setView(defaultView);
+}
+
+
+void resource_delete()
 {
     cleanup();
 }

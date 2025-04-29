@@ -1,4 +1,4 @@
-#ifndef _PLAYER_H_
+п»ї#ifndef _PLAYER_H_
 #define _PLAYER_H_
 
 #include "entity.h"
@@ -6,13 +6,15 @@
 
 class Player;
 
-// Структура для хранения информации о броне
+// РЎС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РёРЅС„РѕСЂРјР°С†РёРё Рѕ Р±СЂРѕРЅРµ
 struct Armor {
     std::string name;
     float defense;
     sf::Texture texture;
-    sf::Sprite sprite;
-    sf::Vector2f offset; // Добавляем смещение для точного позиционирования
+    sf::Sprite sprite;  // РЎРїСЂР°Р№С‚ РґР»СЏ С‚РµР»Р°
+    sf::Sprite handSprite;  // РЎРїСЂР°Р№С‚ РґР»СЏ СЂСѓРєРё (5Р№ РєР°РґСЂ)
+    sf::Vector2f offset;
+    sf::Vector2f set_rect_xy;
 
     Armor() : name(""), defense(0.0f), offset(0, 0) {}
 
@@ -22,30 +24,38 @@ struct Armor {
             return false;
         }
         sprite.setTexture(texture);
+        handSprite.setTexture(texture);
+
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј С‚РµРєСЃС‚СѓСЂСѓ СЂСѓРєРё (5Р№ РєР°РґСЂ) РѕРґРёРЅ СЂР°Р· РїСЂРё Р·Р°РіСЂСѓР·РєРµ
+        handSprite.setTextureRect(sf::IntRect(4 * 16, 0, 16, 32)); // РџСЂРµРґРїРѕР»Р°РіР°РµРј frameWidth=16
+
         return true;
     }
 
     void setPosition(const sf::Vector2f& position) {
         sprite.setPosition(position);
-    }
-
-    void draw(sf::RenderWindow& window) {
-        window.draw(sprite);
+        handSprite.setPosition(position);
     }
 
     void setOffset(const sf::Vector2f& newOffset) {
         offset = newOffset;
+        handSprite.setPosition(sprite.getPosition() + offset);
     }
 
-    // В структуре Armor измените метод set_armor_type:
+    //РёРєРѕРЅРєР°
     void set_armor_type(int x, int y) {
         sprite.setTextureRect(sf::IntRect(x * 16, y * 32, 16, 16));
+    }
+
+    sf::Sprite HandGetTexture()
+    {
+        return handSprite;
     }
 
 
 };
 
-// Структура для хранения информации об оружии
+// РЎС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РёРЅС„РѕСЂРјР°С†РёРё РѕР± РѕСЂСѓР¶РёРё
 struct Weapon {
     enum class Type {
         MELEE,
@@ -56,10 +66,11 @@ struct Weapon {
     Type type;
     float damage;
     float attackSpeed;
-    float criticalChance;  // Шанс критического удара
-    float criticalMultiplier; // Множитель критического урона
+    float criticalChance;  // РЁР°РЅСЃ РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ СѓРґР°СЂР°
+    float criticalMultiplier; // РњРЅРѕР¶РёС‚РµР»СЊ РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ СѓСЂРѕРЅР°
     sf::Texture texture;
     sf::Sprite sprite;
+    sf::Vector2f meleeWeaponOffset;
 
     Weapon() :
         name(""),
@@ -80,7 +91,7 @@ struct Weapon {
     }
 
     void setPosition(const sf::Vector2f& position) {
-        sprite.setPosition(position);
+        sprite.setPosition((position + meleeWeaponOffset));
     }
 
     void draw(sf::RenderWindow& window) {
@@ -93,21 +104,33 @@ struct Weapon {
 
 };
 
-// Класс игрока, наследуется от Entity
+// РљР»Р°СЃСЃ РёРіСЂРѕРєР°, РЅР°СЃР»РµРґСѓРµС‚СЃСЏ РѕС‚ Entity
 class Player : public Entity
 {
 public:
-    // Добавляем новые члены класса
+    // Р”РѕР±Р°РІР»СЏРµРј РЅРѕРІС‹Рµ С‡Р»РµРЅС‹ РєР»Р°СЃСЃР°
     bool isAttacking = false;
     sf::Clock attackCooldown;
-    float attackDuration = 0.5f; // Длительность атаки в секундах
-    sf::RectangleShape attackArea; // Для визуализации области атаки
+    float attackDuration = 0.5f; // Р”Р»РёС‚РµР»СЊРЅРѕСЃС‚СЊ Р°С‚Р°РєРё РІ СЃРµРєСѓРЅРґР°С…
+    sf::Vector2f playerToMouse;
+    sf::Vector2f mousePos;
+
+    Armor armorHead;
+    Armor armorBody;
+    Armor armorLegs;
+    Armor armorShoes;
+    Weapon meleeWeapon;
+    Weapon rangedWeapon;
+
+    //Р”РѕР±Р°РІР»СЏРµРј СЃРїСЂР°Р№С‚С‹ РґР»СЏ СЂСѓРє РїРµСЂСЃРѕРЅР°Р¶Р°(РѕСЃРЅРѕРІРЅС‹Рµ)
+    sf::Sprite frontHandSprite;
+    sf::Sprite backHandSprite;
 
 
     Player(float x, float y, float collisionWidth, float collisionHeight, float visualWidth, float visualHeight, Level lvl)
         : Entity(x, y, collisionWidth, collisionHeight)
     {
-
+        
         visualSize = sf::Vector2f(visualWidth, visualHeight);
         shape.setSize(visualSize);
         shape.setOrigin(visualSize.x / 2, visualSize.y / 2); 
@@ -118,14 +141,34 @@ public:
         else {
             sprite.setTexture(texture);
             currentFrame = 0;
-            frameWidth = texture.getSize().x / 4;
-            frameHeight = texture.getSize().y;
+            frameWidth = 16;
+            frameHeight = 32;
             sprite.setTextureRect(sf::IntRect(0, 0, frameWidth, frameHeight));
             shape.setFillColor(sf::Color::Transparent);
+            frontHandSprite.setTexture(texture);
+            backHandSprite.setTexture(texture);
+            frontHandSprite.setTextureRect(sf::IntRect(64, 0, frameWidth, frameHeight));
+            backHandSprite.setTextureRect(sf::IntRect(64, 0, frameWidth, frameHeight));
+            sprite.setOrigin(frameWidth / 2, frameHeight / 2);
         }
 
-        // Устанавливаем origin спрайта персонажа в центр
+        // Р—Р°РіСЂСѓР·РєР° С‚РµРєСЃС‚СѓСЂС‹ Р°С‚Р°РєРё
+        if (!attackTexture.loadFromFile("resources/Entities/attackArea.png")) {
+            std::cerr << "Failed to load attack texture!" << std::endl;
+        }
+        else {
+            attackSprite.setTexture(attackTexture);
+            attackFrameWidth = attackTexture.getSize().x / 4; // РџСЂРµРґРїРѕР»Р°РіР°РµРј 2 РєР°РґСЂР°
+            attackFrameHeight = attackTexture.getSize().y;
+            attackSprite.setTextureRect(sf::IntRect(0, 0, attackFrameWidth, attackFrameHeight));
+            attackSprite.setOrigin(sprite.getOrigin()); // РСЃРїРѕР»СЊР·СѓРµРј С‚РѕС‚ Р¶Рµ origin
+        }
+
+
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј origin СЃРїСЂР°Р№С‚Р° РїРµСЂСЃРѕРЅР°Р¶Р° РІ С†РµРЅС‚СЂ
         sprite.setOrigin(frameWidth / 2.0f, frameHeight / 2.0f);
+        frontHandSprite.setOrigin(6, 17);
+        backHandSprite.setOrigin(6, 17);
 
         speed = 100.0f;
         level = lvl;
@@ -133,103 +176,156 @@ public:
         animationClock.restart();
         isFacingRight = true;
 
-        // Настройка области атаки (для отладки)
-        attackArea.setSize(sf::Vector2f(16, 26));
-        attackArea.setFillColor(sf::Color(0, 255, 0, 100)); // Полупрозрачный красный
-        attackArea.setOrigin(attackArea.getSize().x / 2, attackArea.getSize().y / 2);
-
     } 
 
     ~Player() override {}
 
-    float getAttackDamage() const {
-        float baseDamage = 0.0f;
-        float criticalMultiplier = 1.0f;
-        bool usingMelee = true; // Логика выбора оружия
+    void update(float deltaTime) override {
+        // РћР±РЅРѕРІР»СЏРµРј РЅР°РїСЂР°РІР»РµРЅРёРµ Рє РєСѓСЂСЃРѕСЂСѓ РїРµСЂРµРґ РІСЃРµРјРё СЂР°СЃС‡РµС‚Р°РјРё
+        updateMouseDirection();
 
-        const Weapon& currentWeapon = usingMelee ? meleeWeapon : rangedWeapon;
+        // Р Р°Р·РІРѕСЂРѕС‚ СЃРїСЂР°Р№С‚Р° РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ РЅР°РїСЂР°РІР»РµРЅРёСЏ Рє РєСѓСЂСЃРѕСЂСѓ
+        isFacingRight = playerToMouse.x > 0;
 
-        // Проверяем, есть ли у игрока оружие
-        if (currentWeapon.texture.getSize().x > 0) {
-            baseDamage = currentWeapon.damage;
+        handleInput(deltaTime);
+        handleAttack();
+        Entity::update(deltaTime);
 
-            // Проверяем критический удар
-            if (static_cast<float>(rand()) / RAND_MAX < currentWeapon.criticalChance) {
-                criticalMultiplier = currentWeapon.criticalMultiplier;
-                // Можно добавить визуальный эффект или звук крита
-            }
-        }
-        else {
-            baseDamage = 1.0f; // Базовый урон без оружия
-        }
+        updateAnimation();
+        sprite.setPosition(position);
+        
+        
 
-        return baseDamage * criticalMultiplier;
+        // РћР±РЅРѕРІР»РµРЅРёРµ РїРѕР·РёС†РёР№ Рё РїРѕРІРѕСЂРѕС‚РѕРІ
+        updateArmorPosition();
+        updateHandPosition();
+        updateWeaponPosition();
+
+        // РћР±РЅРѕРІР»РµРЅРёРµ Р°РЅРёРјР°С†РёРё Р°С‚Р°РєРё
+        updateAttackAnimation();
     }
 
-    bool isCriticalHit() const {
-        bool usingMelee = true; // Логика выбора оружия
-        const Weapon& currentWeapon = usingMelee ? meleeWeapon : rangedWeapon;
 
+    float getDefense() const {
+        float defense = 0.0f;
+        if (!armorHead.texture.getSize().x == 0) defense += armorHead.defense;
+        if (!armorBody.texture.getSize().x == 0) defense += armorBody.defense;
+        if (!armorLegs.texture.getSize().x == 0) defense += armorLegs.defense;
+        if (!armorShoes.texture.getSize().x == 0) defense += armorShoes.defense;
+        return defense;
+    }
+    float getSpeed() const {
+        return speed; // РёР»Рё РјРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РѕС‚ СЌРєРёРїРёСЂРѕРІРєРё
+    }
+    float getBaseDamage(bool useMelee = true) const {
+        const Weapon& currentWeapon = useMelee ? meleeWeapon : rangedWeapon;
         if (currentWeapon.texture.getSize().x > 0) {
-            return (static_cast<float>(rand()) / RAND_MAX < currentWeapon.criticalChance);
+            return currentWeapon.damage;
         }
-        return false;
+        return 1.0f; // Р‘Р°Р·РѕРІС‹Р№ СѓСЂРѕРЅ Р±РµР· РѕСЂСѓР¶РёСЏ
+    }
+    float getAttackDamage(bool useMelee = true) const {
+        float baseDamage = getBaseDamage(useMelee);
+
+        // РџСЂРѕРІРµСЂРєР° РЅР° РєСЂРёС‚РёС‡РµСЃРєРёР№ СѓРґР°СЂ
+        if (static_cast<float>(rand()) / RAND_MAX < getCriticalChance(useMelee)) {
+            return baseDamage * getCriticalMultiplier(useMelee);
+        }
+
+        return baseDamage;
+    }
+    
+    // Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ С€Р°РЅСЃР° РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ СѓРґР°СЂР° С‚РµРєСѓС‰РµРіРѕ РѕСЂСѓР¶РёСЏ
+    float getCriticalChance(bool useMelee = true) const {
+        const Weapon& currentWeapon = useMelee ? meleeWeapon : rangedWeapon;
+        if (currentWeapon.texture.getSize().x > 0) {
+            return currentWeapon.criticalChance;
+        }
+        return 0.0f; // Р‘Р°Р·РѕРІС‹Р№ С€Р°РЅСЃ Р±РµР· РѕСЂСѓР¶РёСЏ
+    }
+    // Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РјРЅРѕР¶РёС‚РµР»СЏ РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ СѓСЂРѕРЅР° С‚РµРєСѓС‰РµРіРѕ РѕСЂСѓР¶РёСЏ
+    float getCriticalMultiplier(bool useMelee = true) const {
+        const Weapon& currentWeapon = useMelee ? meleeWeapon : rangedWeapon;
+        if (currentWeapon.texture.getSize().x > 0) {
+            return currentWeapon.criticalMultiplier;
+        }
+        return 1.0f; // Р‘Р°Р·РѕРІС‹Р№ РјРЅРѕР¶РёС‚РµР»СЊ Р±РµР· РѕСЂСѓР¶РёСЏ
     }
 
-    void handleAttack()
-    {
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && !isAttacking && attackCooldown.getElapsedTime().asSeconds() > attackDuration * 2)
-        {
-            isAttacking = true;
-            attackCooldown.restart();
-
-            // Определяем, какое оружие активно (здесь можно добавить логику переключения)
-            Weapon* currentWeapon = &meleeWeapon; // По умолчанию ближнее
-
-            // Если у игрока есть оружие дальнего боя и оно выбрано
-            if (rangedWeapon.texture.getSize().x > 0 && /* условие выбора дальнего оружия */ false)
-            {
-                currentWeapon = &rangedWeapon;
+    void handleAttack() {
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+            if (playerToMouse.x > 0) {
+                isFacingRight = true;
+            }
+            else {
+                isFacingRight = false;
             }
 
-            // Вызываем соответствующую атаку
-            if (currentWeapon->type == Weapon::Type::MELEE)
-            {
+            if (!isAttacking) {
+                // First attack in combo
+                isAttacking = true;
+                comboCount = 1;
+                isUpwardAttack = false;
+                isFirstAttackInCombo = true;
+                attackCooldown.restart();
+                comboClock.restart();
                 performMeleeAttack();
             }
-            else
-            {
-                performRangedAttack();
+            else if (isAttacking && comboCount == 1 &&
+                comboClock.getElapsedTime().asSeconds() < comboTimeout &&
+                attackCooldown.getElapsedTime().asSeconds() > attackDuration * 0.5f) {
+                // Second attack in combo
+                comboCount = 2;
+                comboClock.restart();
+                attackCooldown.restart();
+                isUpwardAttack = true;
+                isFirstAttackInCombo = false;
+                performComboAttack(isUpwardAttack);
             }
+
         }
 
-        // Завершаем атаку по истечении времени
-        if (isAttacking && attackCooldown.getElapsedTime().asSeconds() > attackDuration)
-        {
+        // Reset attack state after duration
+        if (isAttacking && attackCooldown.getElapsedTime().asSeconds() > attackDuration) {
             isAttacking = false;
+            if (comboClock.getElapsedTime().asSeconds() > comboTimeout) {
+                comboCount = 0;
+            }
         }
     }
 
     void performMeleeAttack()
     {
-        std::cout << "Performing melee attack!" << std::endl;
+        
 
-        // Создаем область урона перед персонажем
-        sf::Vector2f attackPosition = position;
-        float attackOffset = isFacingRight ? 8.f : -8.f;
-        attackPosition.x += attackOffset;
+        //std::cout << "Performing melee attack!" << std::endl;
+        // РЎР±СЂР°СЃС‹РІР°РµРј Р°РЅРёРјР°С†РёСЋ
+        showAttackAnimation = true;
+        currentAttackFrame = 0;
+        attackAnimationClock.restart();
+        attackSprite.setTextureRect(sf::IntRect(0, 0, attackFrameWidth, attackFrameHeight));
 
-        // Устанавливаем позицию и размер области атаки
-        attackArea.setPosition(attackPosition);
+        
 
-        // Для отладки выведем позицию области атаки
-        std::cout << "Attack area at: " << attackPosition.x << ", " << attackPosition.y << std::endl;
+        // РќР°РїСЂР°РІР»РµРЅРёРµ Р°С‚Р°РєРё - Рє РєСѓСЂСЃРѕСЂСѓ
+        float angle = std::atan2(playerToMouse.y, playerToMouse.x) * 180.f / 3.14159265f;
+        float attackDistance = 25.f;
 
-        // Проигрываем анимацию атаки
-        currentFrame = 0;
-        sprite.setTextureRect(sf::IntRect(currentFrame * frameWidth, 0, frameWidth, frameHeight));
 
-        // Сбрасываем таймер анимации, чтобы кадр атаки держался
+        sf::Vector2f attackOffset(
+            std::cos(angle * 3.14159265f / 180.f) * attackDistance,
+            std::sin(angle * 3.14159265f / 180.f) * attackDistance
+        );
+
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј РїРѕР·РёС†РёСЋ Р°РЅРёРјР°С†РёРё Р°С‚Р°РєРё (РЅР° СЂР°СЃСЃС‚РѕСЏРЅРёРё 20 РїРёРєСЃРµР»РµР№ РѕС‚ РёРіСЂРѕРєР° РІ РЅР°РїСЂР°РІР»РµРЅРёРё РєСѓСЂСЃРѕСЂР°)
+        
+        // РћРїСЂРµРґРµР»СЏРµРј, РєСѓРґР° СЃРјРѕС‚СЂРёС‚ РёРіСЂРѕРє (РїРѕ РЅР°РїСЂР°РІР»РµРЅРёСЋ Рє РєСѓСЂСЃРѕСЂСѓ)
+        
+        attackSprite.setPosition(meleeWeapon.sprite.getPosition());
+        attackSprite.setScale(playerToMouse.x > 0 ? 1.f : -1.f, 1.f);
+        isHandAttacking = true;
+        attackHandClock.restart();
+        // РђРЅРёРјР°С†РёСЏ РїРµСЂСЃРѕРЅР°Р¶a
         animationClock.restart();
     }
 
@@ -237,76 +333,51 @@ public:
     {
         std::cout << "Performing ranged attack!" << std::endl;
 
-        // Здесь должна быть логика создания снаряда
-        // Например, создание пули, которая летит в направлении курсора
+        // Р—РґРµСЃСЊ РґРѕР»Р¶РЅР° Р±С‹С‚СЊ Р»РѕРіРёРєР° СЃРѕР·РґР°РЅРёСЏ СЃРЅР°СЂСЏРґР°
+        // РќР°РїСЂРёРјРµСЂ, СЃРѕР·РґР°РЅРёРµ РїСѓР»Рё, РєРѕС‚РѕСЂР°СЏ Р»РµС‚РёС‚ РІ РЅР°РїСЂР°РІР»РµРЅРёРё РєСѓСЂСЃРѕСЂР°
 
-        // Проигрываем анимацию атаки
+        // РџСЂРѕРёРіСЂС‹РІР°РµРј Р°РЅРёРјР°С†РёСЋ Р°С‚Р°РєРё
         currentFrame = 3;
         sprite.setTextureRect(sf::IntRect(currentFrame * frameWidth, 0, frameWidth, frameHeight));
     }
 
-    void update(float deltaTime) override {
-        handleInput(deltaTime);
-        handleAttack(); // Добавляем вызов обработки атаки
-        Entity::update(deltaTime);
+    void performComboAttack(bool upward) {
+        std::cout << "Combo attack #" << comboCount << (upward ? " (upward)" : " (downward)") << std::endl;
 
-        // Обновление анимации
-        updateAnimation();
+        showAttackAnimation = true;
+        currentAttackFrame = 0;
+        attackAnimationClock.restart();
 
-        // Разворот спрайта в зависимости от направления движения
-        if (velocity.x > 0) {
-            isFacingRight = true;
-        }
-        else if (velocity.x < 0) {
-            isFacingRight = false;
-        }
+        // Set attack animation position
+        sf::Vector2f attackPosition = position;
+        float attackOffsetX = isFacingRight ? 20.f : -20.f;
+        float attackOffsetY = upward ? -15.f : 15.f;
+        attackPosition.x += attackOffsetX;
+        attackPosition.y += attackOffsetY;
+        attackSprite.setPosition(attackPosition);
+        attackSprite.setScale(isFacingRight ? 1.f : -1.f, 1.f);
 
-        // Применяем разворот спрайта
-        float scaleX = isFacingRight ? 1.f : -1.f;
-        sprite.setScale(scaleX, 1.f);
-
-        sprite.setPosition(position);
-
-        // Обновляем прямоугольник коллизий
-        rect.left = static_cast<int>(position.x - collisionSize.x / 2);
-        rect.top = static_cast<int>(position.y - collisionSize.y / 2);
-
-        // Обновляем позиции и масштаб брони
-        sf::Vector2f armorScale = sprite.getScale();
-
-        armorHead.setPosition(position);
-        armorBody.setPosition(position);
-        armorLegs.setPosition(position);
-        armorShoes.setPosition(position);
-
-        armorHead.sprite.setScale(armorScale);
-        armorBody.sprite.setScale(armorScale);
-        armorLegs.sprite.setScale(armorScale);
-        armorShoes.sprite.setScale(armorScale);
-
-        meleeWeapon.sprite.setScale(armorScale);
-        meleeWeapon.setPosition(position);
-
-        rangedWeapon.sprite.setScale(armorScale);
-        rangedWeapon.setPosition(position);
-
-
-
+        // Hand animation
+        isHandAttacking = true;
+        attackHandClock.restart();
     }
 
-    sf::FloatRect getAttackAreaBounds() const {
-        return attackArea.getGlobalBounds();
-    }
-
-    // При установке брони добавьте смещения:
+    // РџСЂРё СѓСЃС‚Р°РЅРѕРІРєРµ Р±СЂРѕРЅРё РґРѕР±Р°РІСЊС‚Рµ СЃРјРµС‰РµРЅРёСЏ:
     void setArmorHead(const Armor& armor) {
         armorHead = armor;
         armorHead.sprite.setOrigin(sprite.getGlobalBounds().width / 2, sprite.getGlobalBounds().height / 2);
-    }
+    } 
     void setArmorBody(const Armor& armor) {
         armorBody = armor;
-        armorBody.sprite.setOrigin(sprite.getGlobalBounds().width / 2, sprite.getGlobalBounds().height / 2);
-       
+        armorBody.sprite.setOrigin(frameWidth / 2, frameHeight / 2);
+        armorBody.handSprite.setOrigin(frameWidth / 2, frameHeight / 2);
+
+
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј С‚РµРєСЃС‚СѓСЂСѓ СЂСѓРєРё РѕРґРёРЅ СЂР°Р· РїСЂРё РЅР°РґРµРІР°РЅРёРё
+        frontHandSprite.setTexture(armor.texture);
+        backHandSprite.setTexture(armor.texture);
+        frontHandSprite.setTextureRect(sf::IntRect(4 * frameWidth, 0, frameWidth, frameHeight));
+        backHandSprite.setTextureRect(sf::IntRect(4 * frameWidth, 0, frameWidth, frameHeight));
     }
     void setArmorLegs(const Armor& armor) {
         armorLegs = armor;
@@ -320,13 +391,17 @@ public:
     }
     void setMeleeWeapon(const Weapon& weapon) {
         meleeWeapon = weapon;
-        meleeWeapon.sprite.setOrigin(sprite.getGlobalBounds().width / 2, sprite.getGlobalBounds().height / 2);
+        meleeWeapon.sprite.setOrigin(6, 4); // Р СѓРєРѕСЏС‚СЊ РјРµС‡Р°
 
     }
     void setRangedWeapon(const Weapon& weapon) {
         rangedWeapon = weapon;
         rangedWeapon.sprite.setOrigin(sprite.getGlobalBounds().width / 2, sprite.getGlobalBounds().height / 2);
 
+    }
+
+    bool isMeleeEquipped() const {
+        return meleeWeapon.texture.getSize().x > 0;
     }
 
     void handleInput(float deltaTime)
@@ -352,24 +427,197 @@ public:
         }
 
         // Normalize velocity if moving diagonally
-        if (velocity.x != 0 && velocity.y != 0)
+        if (velocity.x != 0 && velocity.y != 0) 
         {
             velocity /= std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
             velocity *= speed;
+
+            attackSprite.setPosition(position);
         }
-        armorBody.sprite.setTextureRect(sprite.getTextureRect());
-        armorLegs.sprite.setTextureRect(sprite.getTextureRect());
-        armorShoes.sprite.setTextureRect(sprite.getTextureRect());
-        meleeWeapon.sprite.setTextureRect(sprite.getTextureRect());
+
+        
+
+        armorBody.sprite.setTextureRect(sf::IntRect(sprite.getTextureRect().left, armorBody.set_rect_xy.y, sprite.getTextureRect().width, sprite.getTextureRect().height));
+        armorLegs.sprite.setTextureRect(sf::IntRect(sprite.getTextureRect().left, armorLegs.set_rect_xy.y, sprite.getTextureRect().width, sprite.getTextureRect().height));
+        armorShoes.sprite.setTextureRect(sf::IntRect(sprite.getTextureRect().left, armorShoes.set_rect_xy.y, sprite.getTextureRect().width, sprite.getTextureRect().height));
+        
+    }
+    
+    void updateMouseDirection() {
+        playerToMouse = mousePos - position;
+
+        // РќРѕСЂРјР°Р»РёР·СѓРµРј РІРµРєС‚РѕСЂ РЅР°РїСЂР°РІР»РµРЅРёСЏ
+        float length = std::sqrt(playerToMouse.x * playerToMouse.x + playerToMouse.y * playerToMouse.y);
+        if (length > 0) {
+            playerToMouse /= length;
+        }
+    }
+    void updateArmorPosition() {
+        // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј РїРѕР·РёС†РёСЋ Рё РјР°СЃС€С‚Р°Р± РІСЃРµС… С‡Р°СЃС‚РµР№ Р±СЂРѕРЅРё
+        sf::Vector2f armorScale = isFacingRight ? sf::Vector2f(1.f, 1.f) : sf::Vector2f(-1.f, 1.f);
+
+        armorHead.setPosition(position);
+        armorBody.setPosition(position);
+        armorLegs.setPosition(position);
+        armorShoes.setPosition(position);
+
+        armorHead.sprite.setScale(armorScale);
+        armorBody.sprite.setScale(armorScale);
+        armorLegs.sprite.setScale(armorScale);
+        armorShoes.sprite.setScale(armorScale);
+
+        // РЎРїРµС†РёР°Р»СЊРЅР°СЏ РѕР±СЂР°Р±РѕС‚РєР° РґР»СЏ СЂСѓРєРё РёР· Р±СЂРѕРЅРё
+        if (armorBody.texture.getSize().x > 0) {
+            armorBody.handSprite.setPosition(frontHandSprite.getPosition());
+            armorBody.handSprite.setRotation(frontHandSprite.getRotation());
+            armorBody.handSprite.setScale(armorScale);
+        }
+    }
+    void updateAttackAnimation() {
+        if (!showAttackAnimation) return;
+
+        // РћР±РЅРѕРІР»РµРЅРёРµ РєР°РґСЂРѕРІ Р°РЅРёРјР°С†РёРё Р°С‚Р°РєРё
+        if (attackAnimationClock.getElapsedTime().asSeconds() > attackFrameDuration) {
+            currentAttackFrame++;
+
+            if (currentAttackFrame < 4) {
+                // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЃР»РµРґСѓСЋС‰РёР№ РєР°РґСЂ Р°РЅРёРјР°С†РёРё
+                attackSprite.setTextureRect(sf::IntRect(
+                    currentAttackFrame * attackFrameWidth,
+                    0,
+                    attackFrameWidth,
+                    attackFrameHeight
+                ));
+
+                // Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ СЌС„С„РµРєС‚С‹ РїСЂРё Р°РЅРёРјР°С†РёРё
+                if (currentAttackFrame == 2) { // РџРёРєРѕРІС‹Р№ РєР°РґСЂ Р°С‚Р°РєРё
+                    // РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ СЌС„С„РµРєС‚С‹ РІСЂРѕРґРµ СѓРІРµР»РёС‡РµРЅРёСЏ РѕР±Р»Р°СЃС‚Рё Р°С‚Р°РєРё
+                    
+                }
+
+                attackAnimationClock.restart();
+            }
+            else {
+                // РђРЅРёРјР°С†РёСЏ Р·Р°РІРµСЂС€РµРЅР°
+                showAttackAnimation = false;
+                
+            }
+        }
+
+        // РџР»Р°РІРЅРѕРµ РёСЃС‡РµР·РЅРѕРІРµРЅРёРµ Р°РЅРёРјР°С†РёРё
+        if (currentAttackFrame == 3) {
+            float progress = attackAnimationClock.getElapsedTime().asSeconds() / attackFrameDuration;
+            attackSprite.setColor(sf::Color(255, 255, 255, 255 - static_cast<sf::Uint8>(progress * 255)));
+        }
+        else {
+            attackSprite.setColor(sf::Color::White);
+        }
+    }
+    void updateHandPosition() {
+        // Р’С‹С‡РёСЃР»СЏРµРј СѓРіРѕР» Рє РєСѓСЂСЃРѕСЂСѓ РІ РіСЂР°РґСѓСЃР°С…
+        float angleToMouse = std::atan2(playerToMouse.y, playerToMouse.x) * 180.f / 3.14159265f;
+
+        // РћСЃРЅРѕРІРЅР°СЏ СЂСѓРєР° РІСЃРµРіРґР° СЃРјРѕС‚СЂРёС‚ РЅР° РєСѓСЂСЃРѕСЂ
+        if (!isAttacking)
+        {
+            frontHandSprite.setRotation(angleToMouse - 60.f);
+            attackSprite.setRotation(angleToMouse - 60.f);
+        }
+        
+
+        // Р—Р°РґРЅСЏСЏ СЂСѓРєР° Р·РµСЂРєР°Р»СЊРЅРѕ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅР° (СЃ РЅРµР±РѕР»СЊС€РёРј СЃРјРµС‰РµРЅРёРµРј РґР»СЏ РµСЃС‚РµСЃС‚РІРµРЅРЅРѕСЃС‚Рё)
+        //backHandSprite.setRotation(angleToMouse + 15.f - 40.f);
+
+        sf::Vector2f handOffset(
+            -2 * sprite.getScale().x,
+            2
+        );
+
+        frontHandSprite.setPosition(position + handOffset);
+        backHandSprite.setPosition(position + handOffset); // Р—Р°РґРЅСЏСЏ СЂСѓРєР° С‡СѓС‚СЊ Р±Р»РёР¶Рµ
+
+        // РђРЅРёРјР°С†РёСЏ Р°С‚Р°РєРё РґРѕР±Р°РІР»СЏРµС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РґРІРёР¶РµРЅРёРµ
+        if (isHandAttacking) {
+            updateAttackHandAnimation(angleToMouse);
+        }
+    }
+    void updateWeaponPosition() {
+        // РџРѕР·РёС†РёРѕРЅРёСЂСѓРµРј РјРµС‡ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ СЂСѓРєРё
+        float weaponDistance = 14.f; // Р Р°СЃСЃС‚РѕСЏРЅРёРµ РѕС‚ СЂСѓРєРё РґРѕ С†РµРЅС‚СЂР° РјРµС‡Р°
+        float gripOffset = 4.f; // РЎРјРµС‰РµРЅРёРµ РґР»СЏ РїСЂР°РІРёР»СЊРЅРѕРіРѕ С…РІР°С‚Р°
+
+        float angleRad = frontHandSprite.getRotation() * 3.14159265f / 180.f;
+
+        // РЎРјРµС‰РµРЅРёРµ СЃ СѓС‡РµС‚РѕРј С…РІР°С‚Р° (С‡С‚РѕР±С‹ РјРµС‡ Р±С‹Р» РІ СЂСѓРєРµ)
+        sf::Vector2f weaponOffset(
+            std::cos(angleRad) * weaponDistance - std::sin(angleRad) * gripOffset,
+            std::sin(angleRad) * weaponDistance + std::cos(angleRad) * gripOffset
+        );
+
+        meleeWeapon.sprite.setPosition(frontHandSprite.getPosition() + weaponOffset);
+        meleeWeapon.sprite.setRotation(frontHandSprite.getRotation());
+
+        // РћС‚СЂР°Р¶Р°РµРј СЃРїСЂР°Р№С‚ РѕСЂСѓР¶РёСЏ РµСЃР»Рё СЃРјРѕС‚СЂРёРј РІР»РµРІРѕ
+        bool facingRight = playerToMouse.x > 0;
+        meleeWeapon.sprite.setScale(facingRight ? 1.f : -1.f, 1.f);
+
+        // Р”Р»СЏ РґР°Р»СЊРЅРµРіРѕ РѕСЂСѓР¶РёСЏ (Р»СѓРєР° Рё С‚.Рґ.)
+        if (rangedWeapon.texture.getSize().x > 0) {
+            rangedWeapon.sprite.setPosition(position);
+            rangedWeapon.sprite.setRotation(frontHandSprite.getRotation());
+            rangedWeapon.sprite.setScale(facingRight ? 1.f : -1.f, 1.f);
+        }
+    }
+    void updateAttackHandAnimation(float baseAngle) {
+        float attackProgress = attackHandClock.getElapsedTime().asSeconds() / (attackDuration * 0.6f);
+
+        if (attackProgress < 1.0f) {
+            // РџР»Р°РІРЅР°СЏ Р°РЅРёРјР°С†РёСЏ Р·Р°РјР°С…Р° СЃ СЌР»Р°СЃС‚РёС‡РЅРѕСЃС‚СЊСЋ
+            float swingAngle = 0.f;
+
+            if (attackProgress < 0.3f) {
+                // Р¤Р°Р·Р° Р·Р°РјР°С…Р° РЅР°Р·Р°Рґ
+                swingAngle = -45.f * (attackProgress / 0.3f);
+            }
+            else if (attackProgress < 0.7f) {
+                // РћСЃРЅРѕРІРЅР°СЏ С„Р°Р·Р° СѓРґР°СЂР°
+                swingAngle = -45.f + 135.f * ((attackProgress - 0.3f) / 0.4f);
+            }
+            else {
+                // Р¤Р°Р·Р° РІРѕР·РІСЂР°С‚Р° СЃ РЅРµР±РѕР»СЊС€РёРј РѕС‚СЃРєРѕРєРѕРј
+                swingAngle = 90.f - 20.f * ((attackProgress - 0.7f) / 0.3f);
+            }
+
+            // Р”Р»СЏ РІС‚РѕСЂРѕРіРѕ СѓРґР°СЂР° РєРѕРјР±Рѕ РјРµРЅСЏРµРј РЅР°РїСЂР°РІР»РµРЅРёРµ
+            if (comboCount == 2) {
+                swingAngle = -swingAngle * 0.8f;
+            }
+
+            frontHandSprite.setRotation(baseAngle + swingAngle);
+
+            // Р­С„С„РµРєС‚ "СЂР°Р·РјР°С…Р°" - СЂСѓРєР° С‡СѓС‚СЊ РґР°Р»СЊС€Рµ РїСЂРё Р°С‚Р°РєРµ
+            float pushDistance = 1.f * std::sin(attackProgress * 3.14159265f);
+            float angleRad = frontHandSprite.getRotation() * 3.14159265f / 180.f;
+            sf::Vector2f pushOffset(
+                std::cos(angleRad) * pushDistance,
+                std::sin(angleRad) * pushDistance
+            );
+            frontHandSprite.move(pushOffset);
+        }
+        else {
+            // РђРЅРёРјР°С†РёСЏ Р·Р°РІРµСЂС€РµРЅР°
+            isHandAttacking = false;
+            frontHandSprite.setRotation(baseAngle);
+        }
     }
 
-    // Обновление анимации
+    // РћР±РЅРѕРІР»РµРЅРёРµ Р°РЅРёРјР°С†РёРё
     void updateAnimation()
     {
-        // Если идет атака - не обновляем анимацию движения
+        // Р•СЃР»Рё РёРґРµС‚ Р°С‚Р°РєР° - РЅРµ РѕР±РЅРѕРІР»СЏРµРј Р°РЅРёРјР°С†РёСЋ РґРІРёР¶РµРЅРёСЏ
         if (isAttacking) return;
 
-        // Остальной код анимации движения...
+        // РћСЃС‚Р°Р»СЊРЅРѕР№ РєРѕРґ Р°РЅРёРјР°С†РёРё РґРІРёР¶РµРЅРёСЏ...
         if (velocity.x != 0 || velocity.y != 0)
         {
             if (animationClock.getElapsedTime().asMilliseconds() > 100)
@@ -384,23 +632,16 @@ public:
             currentFrame = 1;
             sprite.setTextureRect(sf::IntRect(frameWidth, 0, frameWidth, frameHeight));
         }
-
-        
+        sprite.setScale(isFacingRight ? 1.f : -1.f, 1.f);
     }
-
+    
     
 
 protected:
     float speed;
-    Armor armorHead;
-    Armor armorBody;
-    Armor armorLegs;
-    Armor armorShoes;
-    Weapon meleeWeapon;
-    Weapon rangedWeapon;
     Level level;
 
-    // Анимационные переменные
+    // РђРЅРёРјР°С†РёРѕРЅРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ
     sf::Texture texture;
     sf::Sprite sprite;
     int currentFrame;
@@ -408,42 +649,77 @@ protected:
     int frameHeight;
     sf::Clock animationClock;
     bool isFacingRight;
+     
+    sf::Texture attackTexture;
+    sf::Sprite attackSprite;
+    int attackFrameWidth;
+    int attackFrameHeight;
+    int currentAttackFrame = 0;
+    bool showAttackAnimation = false;
+    sf::Clock attackAnimationClock;
+    float attackFrameDuration = 0.05f; // Р”Р»РёС‚РµР»СЊРЅРѕСЃС‚СЊ РѕРґРЅРѕРіРѕ РєР°РґСЂР° Р°РЅРёРјР°С†РёРё
+
+    int comboCount = 0;
+    sf::Clock comboClock;
+    float comboTimeout = 0.3f; // Р’СЂРµРјСЏ РјРµР¶РґСѓ СѓРґР°СЂР°РјРё РґР»СЏ РєРѕРјР±Рѕ
+    bool isUpwardAttack = false;
+
+
+    // РџРµСЂРµРјРµРЅРЅС‹Рµ РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ СЂСѓРєР°РјРё
+    float handSwingTime = 0.0f;
+    float handSwingSpeed = 5.0f;
+    float handSwingAmount = 15.0f;
+    float frontHandOffsetX = -3.0f;
+    float backHandOffsetX = 2.0f;
+    float handOffsetY = 2.0f;
+    float handRotation = 0.0f;
+    bool isHandAttacking = false;
+    sf::Clock attackHandClock;
+
+    bool isFirstAttackInCombo = true; // Р¤Р»Р°Рі РґР»СЏ РїРµСЂРІРѕРіРѕ СѓРґР°СЂР° РІ РєРѕРјР±Рѕ
+    float comboAttackStartRotation = 0.0f; // РќР°С‡Р°Р»СЊРЅС‹Р№ СѓРіРѕР» РґР»СЏ Р°РЅРёРјР°С†РёРё РєРѕРјР±Рѕ
+    float comboAttackTargetRotation = 90.0f; // Р¦РµР»РµРІРѕР№ СѓРіРѕР» РґР»СЏ Р°РЅРёРјР°С†РёРё РєРѕРјР±Рѕ
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override
     {
 
-        // Отрисовка rect для отладки
-        sf::RectangleShape debugRect(sf::Vector2f(rect.width, rect.height));
-        debugRect.setPosition(rect.left, rect.top);
-        debugRect.setFillColor(sf::Color::Transparent);
-        debugRect.setOutlineColor(sf::Color::Green);
-        debugRect.setOutlineThickness(1);
-        target.draw(debugRect, states);
+        // РћС‚СЂРёСЃРѕРІРєР° rect РґР»СЏ РѕС‚Р»Р°РґРєРё
+        //sf::RectangleShape debugRect(sf::Vector2f(rect.width, rect.height));
+        //debugRect.setPosition(rect.left, rect.top);
+        //debugRect.setFillColor(sf::Color::Transparent);
+        //debugRect.setOutlineColor(sf::Color::Green);
+        //debugRect.setOutlineThickness(1);
+        //target.draw(debugRect, states);
 
-        // Рисуем спрайт игрока
+
+        
+        // Р РёСЃСѓРµРј СЃРїСЂР°Р№С‚ РёРіСЂРѕРєР°
         if (texture.getSize().x > 0) {
-            target.draw(sprite, states);
+            target.draw(backHandSprite, states);//Р—Р°РґРЅСЏСЏ СЂСѓРєР°
+            target.draw(sprite, states);//РўРµР»Рѕ Р±Р°Р·Р°
+            target.draw(armorBody.sprite, states);//Р‘СЂРѕРЅСЏ
+            target.draw(armorHead.sprite, states);//Р“РѕР»РѕРІР°
+            target.draw(armorLegs.sprite, states);//РќРѕРіРё
+            target.draw(armorShoes.sprite, states);//РЎС‚СѓРїРЅРё
+            target.draw(meleeWeapon.sprite, states);//РњРµС‡
+            target.draw(rangedWeapon.sprite, states);//Р›СѓРє
+            target.draw(frontHandSprite, states);//РџРµСЂРµРґРЅСЏСЏ СЂСѓРєР°
         } 
         else {
             Entity::draw(target, states);
         }
 
+        // Р РёСЃСѓРµРј Р°РЅРёРјР°С†РёСЋ Р°С‚Р°РєРё, РµСЃР»Рё РѕРЅР° Р°РєС‚РёРІРЅР°
+        if (showAttackAnimation) {
+            target.draw(attackSprite, states);
+        }
 
-        // Рисуем снаряжение
-        target.draw(armorHead.sprite, states);
-        target.draw(armorBody.sprite, states);
-        target.draw(armorLegs.sprite, states);
-        target.draw(armorShoes.sprite, states);
-        target.draw(meleeWeapon.sprite, states);
-        target.draw(rangedWeapon.sprite, states);
-
-        // Рисуем область атаки всегда, когда isAttacking = true
-            if (isAttacking)
-            {
-                target.draw(attackArea, states);
-            }
+        // Р РёСЃСѓРµРј РѕР±Р»Р°СЃС‚СЊ Р°С‚Р°РєРё РґР»СЏ РѕС‚Р»Р°РґРєРё (РјРѕР¶РЅРѕ СѓР±СЂР°С‚СЊ РІ С„РёРЅР°Р»СЊРЅРѕР№ РІРµСЂСЃРёРё)
+        if (isAttacking) {
+            
+        }
 
     }
 };
 
-#endif 
+#endif  

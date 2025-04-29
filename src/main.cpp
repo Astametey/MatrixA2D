@@ -4,38 +4,61 @@
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "MatrixA2D");
-    //init all
-    resurce_init(&window);
-    
-    // Запуск и работа программы в окне
+
+    // Инициализация с правильным именем функции
+    resource_init(&window);
+
     while (window.isOpen()) {
         sf::Event event;
+
+        // Всегда обновляем позицию мыши
+        GlobalmousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            // Обработка паузы
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-                
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Escape) {
+                    // Обработка паузы
+                    
+                }
+                else if (event.key.code == sf::Keyboard::I) {
+                    inventoryOpen = !inventoryOpen;
+                }
+            }
+
+        }
+
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::I) {
+            inventoryOpen = !inventoryOpen;
+            if (!inventoryOpen && isDragging) {
+                stopDragging(playerInventory);
             }
         }
 
-        // Обновление состояния в зависимости от текущего состояния игры
-       
-            deltaTime = main_clock.restart().asSeconds();
-            game_step(deltaTime);
+        // Обработка ввода для игрока (если инвентарь закрыт)
+        if (!inventoryOpen) {
             
-        // Отрисовка
-        window.clear();
+        }
+        // Обработка инвентаря
+        else {
+            handleInventoryMouseEvents(event, &window, playerInventory);
+        }
 
+        // Обновление игры только если не на паузе
+        
+            deltaTime = main_clock.restart().asSeconds();
+            game_step(deltaTime, &window);
+
+        window.clear();
         game_draw(deltaTime, &window);
 
         window.display();
     }
 
     // Очистка ресурсов
-    resurce_delete();
-    
+    resource_delete();
 
     return 0;
 }
