@@ -134,8 +134,8 @@ bool Level::LoadFromFile(std::string filename, std::string tileset_path)//дво
 	// получаем количество столбцов и строк тайлсета
 	int columns = tileMap_texture.getSize().x / tileWidth;
 	int rows = tileMap_texture.getSize().y / tileHeight;
-	std::cout << "columns = " << columns << std::endl;
-	std::cout << "rows = " << rows << std::endl;
+	//std::cout << "columns = " << columns << std::endl;
+	//std::cout << "rows = " << rows << std::endl;
 
 
 	//Загрузка номеров тайлов в вектор из прямоугольников изображений (TextureRect)
@@ -190,7 +190,7 @@ bool Level::LoadFromFile(std::string filename, std::string tileset_path)//дво
 			layer.tileGID.push_back(tileGID);
 		}
 
-		std::cout << "Number of layer:" << layers.size() << std::endl;
+		//std::cout << "Number of layer:" << layers.size() << std::endl;
 
 		std::cout << "layer name: " << layerElement->Attribute("name") << std::endl;
 		// Вывести значения тайлов
@@ -223,7 +223,7 @@ void Level::LoadObjects(TiXmlElement* map) {
 	std::cout << "Starting to load objects from XML..." << std::endl;
 
 	for (TiXmlElement* objectGroupElement = map->FirstChildElement("objectgroup"); objectGroupElement != nullptr; objectGroupElement = objectGroupElement->NextSiblingElement("objectgroup")) {
-		std::cout << "Found an object group." << std::endl;
+		//std::cout << "Found an object group." << std::endl;
 
 		for (TiXmlElement* objectElement = objectGroupElement->FirstChildElement("object"); objectElement != nullptr; objectElement = objectElement->NextSiblingElement("object")) {
 			//std::cout << "Found an object: ";
@@ -245,7 +245,7 @@ void Level::LoadObjects(TiXmlElement* map) {
 			// Загрузка свойств объекта
 			TiXmlElement* propertiesElement = objectElement->FirstChildElement("properties");
 			if (propertiesElement) {
-				std::cout << "Loading object properties." << std::endl;
+				//std::cout << "Loading object properties." << std::endl;
 				for (TiXmlElement* propertyElement = propertiesElement->FirstChildElement("property"); propertyElement != nullptr; propertyElement = propertyElement->NextSiblingElement("property")) {
 					std::string propertyName = propertyElement->Attribute("name");
 					std::string propertyValue = propertyElement->Attribute("value");
@@ -262,6 +262,8 @@ void Level::LoadObjects(TiXmlElement* map) {
 			}
 			else if (object.name == "Barrel") {
 				object.alwaysBehind = false; // Эти объекты могут быть и перед и за игроком
+				object.rect.width = 28;
+				object.rect.height = 28;
 			}
 			objects.push_back(object);
 			//std::cout << "Object added to the objects vector." << std::endl;

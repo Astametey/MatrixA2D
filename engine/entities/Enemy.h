@@ -37,7 +37,7 @@ public:
     ~Enemy() override {}
 
     void Set_type_enemy(std::string type);
-    void takeDamage(int damage);
+    void takeDamage(int damage, int weaponDMG);
     void applyPushForce(const sf::Vector2f& force);
     void update(float deltaTime, Player& player, const std::vector<std::unique_ptr<Enemy>>& allEnemies);
     sf::FloatRect getGlobalBounds() const override;
@@ -64,6 +64,11 @@ public:
     bool isPositionWalkable(const sf::Vector2f& pos) const;
     void pushOtherEnemies(const std::vector<std::unique_ptr<Enemy>>& allEnemies);
     virtual void draw(sf::RenderWindow& window) override;
+
+    void addDamageText(int damage, bool isCritical);
+    void updateDamageTexts(float deltaTime);
+    void drawDamageTexts(sf::RenderWindow& window);
+
 private:
     int health = 3;
     bool deathAnimationPlayed = false;
@@ -102,7 +107,9 @@ private:
     void calculatePath(const Player& player);
     void moveTowardsPlayer(float deltaTime, const Player& player);
     bool isTileWalkable(int x, int y, const Level& level) const;
-    
+
+    std::vector<DamageText> damageTexts;
+
 protected:
     float speed;
     Level& level;

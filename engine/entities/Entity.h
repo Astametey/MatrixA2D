@@ -53,4 +53,21 @@ private:
     
 };
 
+class DamageText {
+public:
+    DamageText(float x, float y, int damage, bool isCritical = false);
+    void update(float deltaTime);
+    void draw(sf::RenderWindow& window) const;
+    bool isFinished() const;
+
+private:
+    static sf::Font font;
+    static bool fontLoaded;
+    sf::Text text;
+    float lifetime = 1.0f; // Время жизни текста в секундах
+    float currentTime = 0.0f;
+    float speed = 30.0f; // Скорость подъема текста
+    sf::Vector2f position;
+};
+
 #endif

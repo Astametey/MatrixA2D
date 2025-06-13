@@ -50,8 +50,53 @@ void Entity::drawDebugCollision(sf::RenderWindow& window) const {
     collisionBox.setOrigin(collisionSize.x / 2, collisionSize.y / 2);
     collisionBox.setPosition(position);
     collisionBox.setFillColor(sf::Color::Transparent);
-    collisionBox.setOutlineColor(sf::Color::Green); // Зеленый контур для коллизии
+    collisionBox.setOutlineColor(sf::Color::Green);
     collisionBox.setOutlineThickness(1.f);
 
     window.draw(collisionBox);
+}
+
+sf::Font DamageText::font;
+bool DamageText::fontLoaded = false;
+
+DamageText::DamageText(float x, float y, int damage, bool isCritical) : position(x, y) {
+    if (!fontLoaded) {
+        if (!font.loadFromFile("resources/fonts/arial.ttf")) {
+            std::cerr << "Failed to load font for damage text\n";
+        }
+        fontLoaded = true;
+    }
+
+    text.setFont(font);
+    text.setString(std::to_string(damage));
+    text.setCharacterSize(isCritical ? 20 : 14);
+    text.setFillColor(isCritical ? sf::Color::Red : sf::Color::White);
+    text.setOutlineColor(sf::Color::Black);
+    text.setOutlineThickness(0.5f);
+    text.setPosition(position);
+}
+
+void DamageText::update(float deltaTime) {
+    currentTime += deltaTime;
+    position.y -= speed * deltaTime;
+    text.setPosition(position);
+
+    // Плавное исчезновение
+    float alpha = 255 * (1.0f - currentTime / lifetime);
+    if (alpha < 0) alpha = 0;
+    sf::Color color = text.getFillColor();
+    color.a = static_cast<sf::Uint8>(alpha);
+    text.setFillColor(color);
+
+    sf::Color outlineColor = text.getOutlineColor();
+    outlineColor.a = static_cast<sf::Uint8>(alpha);
+    text.setOutlineColor(outlineColor);
+}
+
+void DamageText::draw(sf::RenderWindow& window) const {
+    window.draw(text);
+}
+
+bool DamageText::isFinished() const {
+    return currentTime >= lifetime;
 }

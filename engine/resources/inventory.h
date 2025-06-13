@@ -67,12 +67,14 @@ public:
     }
     virtual void equip(Player& player) = 0;
     virtual void unequip(Player& player) = 0;
+
+    virtual std::unique_ptr<Item> Clone() const = 0;
 };
 
 class ConsumableItem : public Item {
 public:
-    float healthRestore; // Количество восстанавливаемого здоровья
-    bool isPotion; // Флаг, является ли предмет зельем
+    float healthRestore;
+    bool isPotion;
     sf::Texture texture;
 
     ConsumableItem(const std::string& name, float restoreAmount, bool potion = false) {
@@ -80,29 +82,32 @@ public:
         this->name = name;
         healthRestore = restoreAmount;
         isPotion = potion;
-        isStackable = true;  // расходники стекируемыми
-        maxStackSize = 99;   // Максимальный размер стека
+        isStackable = true;
+        maxStackSize = 99;
     }
 
     void equip(Player& player) override {
-        // Для расходуемых предметов equip означает использование
         use(player);
     }
 
     void unequip(Player& player) override {
-        // Ничего не делаем, так как предмет уже использован
+        // Ничего не делаем
     }
 
     void use(Player& player) {
-        // Здесь логика использования предмета
-        // Например, восстановление здоровья игрока
-        // player.heal(healthRestore);
-
-        // Можно добавить эффекты или звуки
+        //player.heal(healthRestore);
         std::cout << "Used " << name << ", restored " << healthRestore << " health" << std::endl;
+    }
 
-        // После использования предмет удаляется из инвентаря
-        // Это обрабатывается в Inventory::useQuickAccessItem
+    std::unique_ptr<Item> Clone() const override {
+        auto clone = std::make_unique<ConsumableItem>(name, healthRestore, isPotion);
+        clone->texture = this->texture;
+        clone->sprite = this->sprite;
+        clone->sprite.setTexture(clone->texture);
+        clone->isStackable = this->isStackable;
+        clone->maxStackSize = this->maxStackSize;
+        clone->stackSize = this->stackSize;
+        return clone;
     }
 };
 
@@ -113,8 +118,11 @@ public:
     ArmorItem(const Armor& armor, ItemType item_tipe) : armor(armor) {
         type = item_tipe;
         name = armor.name;
-        sprite = armor.sprite;
+
+        sprite.setTextureRect(armor.sprite.getTextureRect());
         getRect = armor.sprite.getTextureRect();
+
+        
     }
 
     void equip(Player& player) override {
@@ -156,41 +164,69 @@ public:
             player.unqArmorShoes();
         }
     }
+
+    std::unique_ptr<Item> Clone() const override {
+        auto clone = std::make_unique<ArmorItem>(armor, type);
+        clone->sprite = this->sprite;
+        clone->isStackable = this->isStackable;
+        clone->maxStackSize = this->maxStackSize;
+        clone->stackSize = this->stackSize;
+        return clone;
+    }
+
 };
 
 class WeaponItem : public Item {
 public:
     Weapon weapon;
+    sf::Texture texture;
 
-    WeaponItem(const Weapon& weapon, ItemType item_tipe) : weapon(weapon) {
-        type = item_tipe;
+    WeaponItem(const Weapon& weaponTemplate, ItemType item_type)
+        : weapon(weaponTemplate) {
+        type = item_type;
         name = weapon.name;
-        sprite = weapon.sprite;
-        getRect = weapon.sprite.getTextureRect();
+
+        if (!texture.loadFromFile(weapon.texturePath)) {
+            std::cerr << "Failed to load weapon texture: " << weapon.texturePath << std::endl;
+        }
+        else {
+            sprite.setTexture(texture);
+            sprite.setTextureRect(weapon.textureRect);
+            getRect = weapon.textureRect;
+        }
     }
 
     void equip(Player& player) override {
-        std::cout << "Attempting to equip weapon: " << name << "\n";
         isEquipped = true;
         player.setWeapon(weapon);
-        std::cout << "Weapon equipped: " << player.isMeleeEquipped() << "\n";
+        std::cout << "Equipped weapon: " << name << std::endl;
     }
 
     void unequip(Player& player) override {
         isEquipped = false;
         player.unqWeapon();
-        std::cout << "unequip" << std::endl;
+        std::cout << "Unequipped weapon: " << name << std::endl;
     }
 
+    std::unique_ptr<Item> Clone() const override {
+        auto clone = std::make_unique<WeaponItem>(weapon, type);
+        // Перезагружаем текстуру для клона
+        if (!clone->texture.loadFromFile(weapon.texturePath)) {
+            std::cerr << "Failed to reload texture in clone: " << weapon.texturePath << std::endl;
+        }
+        clone->sprite.setTexture(clone->texture);
+        clone->sprite.setTextureRect(this->sprite.getTextureRect());
+        clone->sprite.setPosition(this->sprite.getPosition());
+        clone->sprite.setScale(this->sprite.getScale());
+        return clone;
+    }
 };
 
 class Inventory {
 public:
     Inventory(sf::RenderWindow& window, Player& player);
-    std::vector<std::unique_ptr<Item>> groundItems;
     bool addItem(std::unique_ptr<Item> newItem);
     bool isSlotOccupied(const sf::Vector2f& position) const;
-    void addGroundItem(std::unique_ptr<Item> item, const sf::Vector2f& position);
     void update(float dt, sf::View& gui_view);
     void render();
     void renderUI();
@@ -214,10 +250,8 @@ public:
     bool isArmorType(ItemType type) const;
     void selectQuickSlot(int slotIndex);
     void useActiveQuickSlotItem();
-
-    void GroundItemsrender();
     void toggleVisibility();
-    void tryPickupItem(const sf::Vector2f& playerPos);
+    void tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems);
     bool isVisible() const;
     bool moveArmorToSlot(std::unique_ptr<Item> item, ItemType armorType);
 
@@ -305,4 +339,13 @@ private:
     void checkItemPickup();
     void checkItemDrop();
     void checkSlotHover();
+
+    void updateTooltip(const sf::Vector2f& mousePos);
+    void createTooltipContent(Item* item, const sf::Vector2f& mousePos);
+    void createEmptySlotTooltip(const std::string& slotName, const sf::Vector2f& mousePos);
+    void setupTooltipVisuals(const std::string& text, const sf::Vector2f& mousePos);
+    sf::Text tooltipText;
+    sf::RectangleShape tooltipBackground;
+    bool showTooltip = false;
+    sf::Vector2f tooltipPosition;
 };

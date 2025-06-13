@@ -27,16 +27,13 @@ public:
 private:
     void handleEvents(float deltaTime);
     void update(float deltaTime);
-    void render();
+    void render(float deltaTime);
     void initResources();
     void ClearAllEntities(); // Очистка при смене уровня
     std::vector<std::unique_ptr<Enemy>> enemies;
     LevelManager levelManager;
     void HandleLevelTransitions();
-    void SwitchLevelWithFade(const std::string& levelName);
     void SpawnPlayerAtStart();
-
-    void UpdateGroundItems();
 
     float enemySpawnTimer = 0.0f;
     const float enemySpawnInterval = 1.0f; // Интервал спавна в секундах
@@ -59,14 +56,6 @@ private:
     sf::Vector2f worldPos;
 
     //init Resources
-    Armor ironHelmet;
-    Armor ironShirt;
-    Armor Dress;
-    Armor ironPants;
-    Armor ironShoes;
-
-    Weapon ironSword;
-    Weapon ironBow;
     
     
 };

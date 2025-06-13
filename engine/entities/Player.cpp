@@ -5,7 +5,8 @@ Player::Player(float x, float y, float collisionWidth, float collisionHeight, fl
 {
 
     // Параметры атаки
-    
+    collisionSize.x = 8;
+    collisionSize.y = 4;
     attackCooldown = 0.3f;
     attackDuration = 0.30f; // Уменьшена длительность атаки для более резкого движения
     attackStartAngle = 180.f; // Рука начинается сбоку
@@ -103,19 +104,21 @@ void Player::update(float deltaTime) {
 
     handleInput(deltaTime);
     Entity::update(deltaTime);
-    updateAnimation();
-    updateArmorPosition();
+    
+    
 
     // Обновляем атаку
     updateAttack(deltaTime);
-    sprite.setPosition(position);
-    spriteEye.setPosition(position);
+    sprite.setPosition(position.x, position.y-4);
+    spriteEye.setPosition(sprite.getPosition());
     spriteEye.setScale(armorHead.sprite.getScale());
     spriteHair.setScale(armorHead.sprite.getScale());
-    spriteHair.setPosition(position);
+    spriteHair.setPosition(sprite.getPosition());
 
     updateWeaponPosition();
-    
+    updateDamageTexts(deltaTime);
+    updateAnimation();
+    updateArmorPosition();
 
 
 } 
@@ -149,13 +152,23 @@ void Player::setArmorShoes(const Armor& armor) {
 
 }
 void Player::setWeapon(const Weapon& weapon) {
+
+    if (weapon.texture.getSize().x == 0) {
+        std::cerr << "Cannot equip weapon - texture not loaded: " << weapon.name << std::endl;
+        return;
+    }
+
     if (weapon.type == Weapon::Type::MELEE)
     {
+        std::cout << "Setting melee weapon: " << weapon.name
+            << ", texture size: " << weapon.texture.getSize().x
+            << "x" << weapon.texture.getSize().y << "\n";
         backHandSprite.setRotation(0);
         frontHandSprite.setRotation(0);
         std::cout << "Setting melee weapon: " << weapon.name << "\n";
         meleeWeapon = weapon;
         attackSpeed = meleeWeapon.attackSpeed;
+        meleeWeapon.sprite.setTexture(weapon.texture);
         meleeWeapon.sprite.setOrigin(-1, -3); // Точка хвата (подбирается экспериментально)
         meleeWeapon.sprite.setTextureRect(sf::IntRect(0, 0, 32, 32)); // Размер текстуры
         meleeWeapon.collisionOffset.x = -meleeWeapon.sprite.getOrigin().x + 8; 
@@ -164,10 +177,16 @@ void Player::setWeapon(const Weapon& weapon) {
     }
     else
     {
+        std::cout << "Setting ranged weapon: " << weapon.name
+            << ", texture size: " << weapon.texture.getSize().x
+            << "x" << weapon.texture.getSize().y << "\n";
         std::cout << "Setting ranged weapon: " << weapon.name << "\n";
         rangedWeapon = weapon;
+        rangedWeapon.sprite.setTexture(weapon.texture);
+        attackSpeed = rangedWeapon.attackSpeed;
         rangedWeapon.sprite.setTextureRect(sf::IntRect(0, 0, 32, 32));
         rangedWeapon.sprite.setOrigin(14, 12);
+        pushForce = rangedWeapon.pushForce;
     }
     ifEqupWeapon = true;
     
@@ -208,7 +227,6 @@ void Player::unqWeapon() {
     frontHandSprite.setRotation(0);
     ifEqupWeapon = false;
 }
-
 
 void Player::shoot() {
     if (currentShootCooldown > 0.f || rangedWeapon.texture.getSize().x == 0) return;
@@ -457,12 +475,12 @@ void Player::updateAnimation() {
         // Обновляем позиции рук с учетом направления
         sf::Vector2f frontHandPos, backHandPos;
         if (isFacingRight) {
-            frontHandPos = position + frontHandOffset;
-            backHandPos = position + backHandOffset;
+            frontHandPos = sprite.getPosition() + frontHandOffset;
+            backHandPos = sprite.getPosition() + backHandOffset;
         }
         else {
-            frontHandPos = position + sf::Vector2f(-frontHandOffset.x, frontHandOffset.y);
-            backHandPos = position + sf::Vector2f(-backHandOffset.x, backHandOffset.y);
+            frontHandPos = sprite.getPosition() + sf::Vector2f(-frontHandOffset.x, frontHandOffset.y);
+            backHandPos = sprite.getPosition() + sf::Vector2f(-backHandOffset.x, backHandOffset.y);
         }
 
         // Устанавливаем позиции и масштаб рук
@@ -514,10 +532,10 @@ void Player::updateArmorPosition() {
     // Устанавливаем позицию и масштаб всех частей брони
     sf::Vector2f armorScale = isFacingRight ? sf::Vector2f(1.f, 1.f) : sf::Vector2f(-1.f, 1.f);
 
-    armorHead.setPosition(position);
-    armorBody.setPosition(position);
-    armorLegs.setPosition(position);
-    armorShoes.setPosition(position);
+    armorHead.setPosition(sprite.getPosition());
+    armorBody.setPosition(sprite.getPosition());
+    armorLegs.setPosition(sprite.getPosition());
+    armorShoes.setPosition(sprite.getPosition());
 
     armorHead.sprite.setScale(armorScale);
     armorBody.sprite.setScale(armorScale);
@@ -581,12 +599,12 @@ void Player::updateWeaponPosition() {
         // Обновляем позиции рук с учетом направления
         sf::Vector2f frontHandPos, backHandPos;
         if (isFacingRight) {
-            frontHandPos = position + frontHandOffset;
-            backHandPos = position + backHandOffset;
+            frontHandPos = sprite.getPosition() + frontHandOffset;
+            backHandPos = sprite.getPosition() + backHandOffset;
         }
         else {
-            frontHandPos = position + sf::Vector2f(-frontHandOffset.x, frontHandOffset.y);
-            backHandPos = position + sf::Vector2f(-backHandOffset.x, backHandOffset.y);
+            frontHandPos = sprite.getPosition() + sf::Vector2f(-frontHandOffset.x, frontHandOffset.y);
+            backHandPos = sprite.getPosition() + sf::Vector2f(-backHandOffset.x, backHandOffset.y);
         }
         
         // Устанавливаем позиции и масштаб рук
@@ -687,6 +705,32 @@ void Player::pushBack(const sf::Vector2f& direction, float force) {
     }
 }
 
+void Player::addDamageText(int damage, bool isCritical) {
+    damageTexts.emplace_back(position.x, position.y - 30, damage, isCritical);
+}
+void Player::updateDamageTexts(float deltaTime) {
+    for (auto& text : damageTexts) {
+        text.update(deltaTime);
+    }
+
+    // Удаляем завершенные тексты
+    damageTexts.erase(
+        std::remove_if(damageTexts.begin(), damageTexts.end(),
+            [](const DamageText& text) { return text.isFinished(); }),
+        damageTexts.end()
+    );
+}
+void Player::drawDamageTexts(sf::RenderWindow& window) {
+    for (const auto& text : damageTexts) {
+        text.draw(window);
+    }
+}
+
+void Player::takeDamage(int damage) {
+    
+    // Добавляем текст урона
+    addDamageText(damage, false);
+}
 
 void Player::draw(sf::RenderWindow& window)
 {
@@ -731,7 +775,15 @@ void Player::draw(sf::RenderWindow& window)
             if (rangedWeapon.name != "")
                 window.draw(rangedWeapon.sprite);//bow
             if (meleeWeapon.name != "")
-                window.draw(meleeWeapon.sprite);//sword
+            {
+                window.draw(meleeWeapon.sprite);
+
+                // Отладочный прямоугольник
+                sf::RectangleShape debugRect(sf::Vector2f(5, 5));
+                debugRect.setFillColor(sf::Color::Red);
+                debugRect.setPosition(meleeWeapon.sprite.getPosition());
+                window.draw(debugRect);
+            }//sword
             window.draw(frontHandSprite);//front arm
             window.draw(sprite);//body
             window.draw(spriteEye);//eyes
@@ -756,7 +808,7 @@ void Player::draw(sf::RenderWindow& window)
     else {
         Entity::draw(window);
     }
-    drawDebugCollision(window);
+    //drawDebugCollision(window);
 
     // Рисуем снаряды (прямоугольные области атаки)
     for (const auto& projectile : projectiles) {
@@ -764,5 +816,7 @@ void Player::draw(sf::RenderWindow& window)
             window.draw(projectile.shape);
         }
     }
+
+    drawDamageTexts(window);
 
 }

@@ -88,12 +88,14 @@ struct Weapon {
     float attackCooldown = 0.3f;
     float criticalChance;  // chance to critical
     float criticalMultiplier; // critical
-    float pushForce = 100.0f;
+    float pushForce = 50.0f;
 
     float projectileSpeed = 100.f;
     float projectileLifetime = 2.0f;
 
     //textures
+    std::string texturePath;  // Храним путь к текстуре
+    sf::IntRect textureRect;
     sf::Texture texture;
     sf::Sprite sprite;
 
@@ -102,7 +104,7 @@ struct Weapon {
     sf::FloatRect collisionRect; // Прямоугольник коллизии оружия
     sf::Vector2f collisionOffset; // Смещение относительно позиции оружия
     
-    void setType(int typeNum) { //0-Melle, 1 - ranged
+    void setType(int typeNum) { 
         switch (typeNum) {
         case 0: type = Type::MELEE; break;
         case 1: type = Type::RANGED; break;
@@ -113,19 +115,36 @@ struct Weapon {
     Weapon() :
         name(""),
         damage(1.0f),
-        attackSpeed(140.0f),
+        attackSpeed(100.0f),
         criticalChance(0.1f),
         criticalMultiplier(2.0f),
         collisionRect(0, 0, 16, 16), // Размеры по умолчанию
         collisionOffset(0, 0)
     {}
 
-    bool loadTexture(const std::string& filename) {
-        if (!texture.loadFromFile(filename)) {
-            std::cerr << "Failed to load texture: " << filename << std::endl;
-            return false;
+    Weapon(const std::string& path) :
+        texturePath(path),
+        name(""),
+        damage(1.0f),
+        attackSpeed(100.0f),
+        criticalChance(0.1f),
+        criticalMultiplier(2.0f),
+        collisionRect(0, 0, 16, 16),
+        collisionOffset(0, 0)
+    {
+        // Загружаем текстуру сразу
+        if (!texture.loadFromFile(texturePath)) {
+            std::cerr << "Failed to load weapon texture: " << texturePath << std::endl;
         }
-        sprite.setTexture(texture, true);
+    }
+
+    void setTextureRect(int x, int y, int width, int height) {
+        textureRect = sf::IntRect(x, y, width, height);
+    }
+
+    bool loadTexture(const std::string& filename) {
+        texturePath = filename;
+
         return true;
     }
 
@@ -241,6 +260,10 @@ public:
     // Добавляем новый метод
     void shoot();
 
+    void addDamageText(int damage, bool isCritical);
+    void updateDamageTexts(float deltaTime);
+    void drawDamageTexts(sf::RenderWindow& window);
+    void takeDamage(int damage);
 private:
 
     // Анимационные переменные
@@ -276,7 +299,9 @@ private:
     float attackEndAngle = 30.f; // Конечный угол атаки
     sf::Clock autoAttackClock; // Таймер для автоатаки
     float autoAttackInterval = 1.0f; // Интервал автоатаки
+    
 
+    std::vector<DamageText> damageTexts;
 };
 
 #endif

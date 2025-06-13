@@ -16,10 +16,9 @@ player(32, 32, 16, 16, 16, 32), inventory(m_window, player), rng(std::random_dev
     //init resources
     // Add some items
     initResources();
-    UpdateGroundItems();
-    cameraPosition = player.getPosition();
     inventory.updateEquipmentAfterQuickSlotChange(inventory.activeQuickSlot);
     SpawnPlayerAtStart();
+    cameraPosition = player.getPosition();
     main_view.reset(sf::FloatRect(player.getPosition().x, player.getPosition().y, 640, 380));
     m_window.setView(main_view); // view windows
 }
@@ -42,7 +41,7 @@ void Engine::run() {
         handleEvents(deltaTime);
         update(deltaTime);
         main_view.setCenter(cameraPosition); // Используем плавную позицию камеры
-        render();
+        render(deltaTime);
     }
 }
 
@@ -57,7 +56,7 @@ void Engine::handleEvents(float deltaTime) {
                 inventory.toggleVisibility();
             }
             if (event.key.code == sf::Keyboard::E) {
-                inventory.tryPickupItem(player.getPosition());
+                inventory.tryPickupItem(player.getPosition(), levelManager.GetCurrentGroundItems());
             }
         }
 
@@ -125,7 +124,7 @@ void Engine::update(float deltaTime) {
     
 }
 
-void Engine::render() {
+void Engine::render(float deltaTime) {
     m_window.clear();
 
     // 1. Тайлы уровня (самый нижний слой)
@@ -149,7 +148,7 @@ void Engine::render() {
         }
 
         // Если между этим и следующим объектом нужно нарисовать врагов
-        if (i + 1 < objectsToRender.size()) {
+        if (i + 1 < objectsToRender.size()) { 
             auto* nextObject = objectsToRender[i + 1];
             float nextObjectBottom = nextObject->rect.top + nextObject->rect.height;
 
@@ -162,7 +161,22 @@ void Engine::render() {
             }
         }
     }
-    inventory.GroundItemsrender();
+    for (auto& item : levelManager.GetCurrentGroundItems()) {
+        float distance = std::sqrt(
+            std::pow(player.getPosition().x - item->sprite.getPosition().x, 2) +
+            std::pow(player.getPosition().y - item->sprite.getPosition().y, 2));
+
+        if (distance > 32) {
+            // Можно добавить эффект "пульсации" предмета
+            float scale = 1.0f + 0.1f * std::sin(deltaTime * 6.0f);
+            item->sprite.setScale(scale, scale);
+        }
+        else {
+            item->sprite.setScale(1.0f, 1.0f);
+        }
+
+        m_window.draw(item->sprite);
+    }
     // 4. Рендерим игрока
     player.draw(m_window);
 
@@ -200,106 +214,29 @@ void Engine::render() {
     m_window.display();
 }
 
-void Engine::UpdateGroundItems() {
-    auto& groundItems = levelManager.GetCurrentGroundItems();
-    inventory.groundItems.clear(); // Очищаем текущие предметы
-    // Перемещаем предметы из levelManager в inventory
-    for (auto& item : groundItems) {
-        inventory.groundItems.push_back(std::move(item));
-    }
-    groundItems.clear(); // Очищаем исходный вектор, так как владение передано
-    std::cout << "groundItems.clear()" << std::endl;
-}
 
 void Engine::initResources() {
 
-    // Шлем
-    if (!ironHelmet.loadTexture("resources/textures/items/armor/helmet.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
+    auto sword = levelManager.CreateItemFromTemplate("steel_sword", { 0,0 });
+    if (sword) {
+        inventory.addItem(std::move(sword));
     }
-    ironHelmet.name = "Iron Helmet";
-    ironHelmet.defense = 2.0f;
-    ironHelmet.set_sprite_icon(64, 0, 16, 16); 
-    inventory.addItem(std::make_unique<ArmorItem>(ironHelmet, ItemType::HELMET));
-
-    // куртка
-    if (!ironShirt.loadTexture("resources/textures/items/armor/shirts.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    ironShirt.name = "Iron shirts"; 
-    ironShirt.defense = 3.0f;
-    ironShirt.set_sprite_icon(81, 1, 15, 14);
-    inventory.addItem(std::make_unique<ArmorItem>(ironShirt, ItemType::BODY));
-
-    // dress
-    if (!Dress.loadTexture("resources/textures/items/armor/dress.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    Dress.name = "tiny dress"; 
-    Dress.defense = 0.0f; 
-    Dress.set_sprite_icon(81, 1, 15, 14);
-    inventory.addItem(std::make_unique<ArmorItem>(Dress, ItemType::BODY));
-
-    // штаны 
-    if (!ironPants.loadTexture("resources/textures/items/armor/pants.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    ironPants.name = "Iron pants";
-    ironPants.defense = 3.0f;
-    ironPants.set_sprite_icon(64, 0, 16, 16);
-    inventory.addItem(std::make_unique<ArmorItem>(ironPants, ItemType::LEGS));
-     
-    // тапки
-    if (!ironShoes.loadTexture("resources/textures/items/armor/shoes.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    ironShoes.name = "Iron shoes";
-    ironShoes.defense = 2.0f;
-    ironShoes.set_sprite_icon(64, 0, 16, 16);
-    inventory.addItem(std::make_unique<ArmorItem>(ironShoes, ItemType::SHOES));
-
-    // sword
-    if (!ironSword.loadTexture("resources/textures/items/weapon/sword.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    ironSword.name = "iron Sword";
-    ironSword.damage = 5.0f;
-    ironSword.set_sprite_icon(32, 0, 16, 16);
-    ironSword.collisionOffset = sf::Vector2f(8, -10); // Начальное смещение
-    ironSword.pushForce = 300.f;
-    ironSword.setType(0);
-    inventory.addItem(std::make_unique<WeaponItem>(ironSword, ItemType::WEAPON));
-
-    // bow
-    if (!ironBow.loadTexture("resources/textures/items/weapon/bow.png")) {
-        std::cerr << "Failed to load helmet texture!" << std::endl;
-    }
-    ironBow.name = "iron Bow";
-    ironBow.damage = 2.0f;
-    ironBow.set_sprite_icon(64, 0, 16, 16);
-    ironBow.pushForce = 200.f;
-    ironBow.projectileSpeed = 200.f;
-    ironBow.setType(1);
-    inventory.addItem(std::make_unique<WeaponItem>(ironBow, ItemType::WEAPON));
-
 }
 void Engine::HandleLevelTransitions() {
     const auto& objects = levelManager.GetCurrentLevel()->getObjects();
     for (const auto& object : objects) {
         if (object.type == "level_transition" && object.rect.contains(player.getPosition())) {
             std::string targetLevel = object.name;
-            
-            UpdateGroundItems();
-            // Сохраняем состояние игрока перед переходом
 
             // Переключаем уровень
             levelManager.SwitchLevel(targetLevel);
 
-            // Восстанавливаем состояние игрока
+            // Восстанавливаем позицию игрока
             player.setPosition(sf::Vector2f(
                 object.GetPropertyFloat("spawn_x"),
                 object.GetPropertyFloat("spawn_y")
             ));
+            cameraPosition = player.getPosition();
 
             break;
         }

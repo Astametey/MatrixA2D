@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="20" height="10" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="13">
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="20" height="10" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="30">
  <tileset firstgid="1" source="../../../resources/Tile editor/forest_tile_set.tsx"/>
+ <tileset firstgid="901" source="../../../resources/Tile editor/MatrixA2D/TX/itemsOnground.tsx"/>
  <layer id="1" name="tile_layer_0" width="20" height="10">
   <data encoding="csv">
 32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
@@ -25,8 +26,8 @@
 212,212,212,212,213,91,125,122,124,93,0,241,242,242,243,0,0,0,0,0,
 212,212,212,212,213,121,122,122,122,123,0,0,91,92,92,92,92,92,92,92,
 212,212,184,242,243,121,122,122,122,124,92,92,125,94,152,152,152,152,152,152,
-212,184,243,0,0,121,122,122,94,152,152,152,152,153,0,0,0,0,0,0,
-184,243,0,0,0,151,152,152,153,0,0,0,0,0,0,0,0,0,0,0
+212,184,243,91,92,125,122,122,94,152,152,152,152,153,0,0,0,0,0,0,
+184,243,0,121,94,152,152,152,153,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
  <layer id="4" name="tile_layer_plants" width="20" height="10">
@@ -44,13 +45,16 @@
 </data>
  </layer>
  <objectgroup id="3" name="PickupItem_object_layer">
-  <object id="2" name="mushroom" type="pickup" gid="7" x="96" y="64" width="32" height="32"/>
-  <object id="3" name="mushroom" type="pickup" gid="7" x="288" y="96" width="32" height="32"/>
-  <object id="4" name="mushroom" type="pickup" gid="7" x="32" y="224" width="32" height="32"/>
-  <object id="5" name="mushroom" type="pickup" gid="7" x="512" y="288" width="32" height="32"/>
+  <object id="14" name="steel_sword" type="pickup" gid="901" x="400.212" y="216.697" width="16" height="16"/>
+  <object id="15" name="iron_bow" type="pickup" gid="902" x="479.788" y="215.849" width="16" height="16"/>
+  <object id="25" name="blood_mushroom" type="pickup" gid="7" x="305" y="60" width="32" height="32"/>
+  <object id="26" name="blood_mushroom" type="pickup" gid="7" x="252.5" y="152.5" width="32" height="32"/>
+  <object id="27" name="blood_mushroom" type="pickup" gid="7" x="217" y="104.5" width="32" height="32"/>
+  <object id="28" name="blood_mushroom" type="pickup" gid="7" x="329.5" y="101" width="32" height="32"/>
+  <object id="29" name="blood_mushroom" type="pickup" gid="7" x="390.5" y="136" width="32" height="32"/>
  </objectgroup>
  <objectgroup id="5" name="transitions">
-  <object id="10" name="forest" type="level_transition" x="634.167" y="202.333" width="3.66667" height="44.8333">
+  <object id="10" name="forest" type="level_transition" x="637.542" y="201.833" width="1.66667" height="44.8333">
    <properties>
     <property name="spawn_x" type="float" value="60"/>
     <property name="spawn_y" type="float" value="550"/>
@@ -58,7 +62,8 @@
    </properties>
   </object>
  </objectgroup>
- <objectgroup id="6" name="object_solid_0">
+ <objectgroup id="6" name="object_solid_0" class="weapon">
   <object id="12" name="Barrel" type="solid" gid="9" x="416" y="224" width="32" height="32"/>
+  <object id="16" name="Barrel" type="solid" gid="9" x="448" y="224" width="32" height="32"/>
  </objectgroup>
 </map>

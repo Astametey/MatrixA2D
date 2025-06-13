@@ -107,11 +107,19 @@ void Enemy::Set_type_enemy(std::string type) {
     sprite.setOrigin(frameWidth / 2, frameHeight / 2);
 }
 
-void Enemy::takeDamage(int damage) {
+void Enemy::takeDamage(int damage, int weaponDMG) {
     if (isDead() || currentState == AnimationType::Death)
         return;
+    bool isCritical = false;
+    if (damage >  weaponDMG)
+    {
+        isCritical = true;
+    }
+    
 
     health -= damage;
+    addDamageText(damage, isCritical);
+
 
     if (health <= 0) {
         health = 0;
@@ -186,7 +194,7 @@ void Enemy::update(float deltaTime, Player& player, const std::vector<std::uniqu
     // Проверка столкновения со снарядами игрока
     for (auto& projectile : player.getProjectiles()) {
         if (!projectile.hit && getGlobalBounds().intersects(projectile.shape.getGlobalBounds())) {
-            takeDamage(player.rangedWeapon.damage);
+            takeDamage(player.getAttackDamage(), player.rangedWeapon.damage * 2);
 
             // Применяем отталкивание от снаряда
             sf::Vector2f direction = position - projectile.shape.getPosition();
@@ -247,6 +255,7 @@ void Enemy::update(float deltaTime, Player& player, const std::vector<std::uniqu
     sprite.setPosition(position);
     Entity::update(deltaTime);
     updateAnimation();
+    updateDamageTexts(deltaTime);
 }
 
 sf::FloatRect Enemy::getGlobalBounds() const {
@@ -527,7 +536,7 @@ void Enemy::onPlayerCollision(const Player& player) {
 
         if (weaponCollision.intersects(enemyBounds)) {
             if (!wasHitThisAttack) {
-                takeDamage(player.getAttackDamage());
+                takeDamage(player.getAttackDamage(), player.meleeWeapon.damage);
                 wasHitThisAttack = true;
 
                 sf::Vector2f weaponCenter(
@@ -704,6 +713,29 @@ void Enemy::updateCollisionRect() {
     rect.height = collisionSize.y;
 }
 
+void Enemy::addDamageText(int damage, bool isCritical) {
+    damageTexts.emplace_back(position.x, position.y - 30, damage, isCritical);
+}
+
+void Enemy::updateDamageTexts(float deltaTime) {
+    for (auto& text : damageTexts) {
+        text.update(deltaTime);
+    }
+
+    // Удаляем завершенные тексты
+    damageTexts.erase(
+        std::remove_if(damageTexts.begin(), damageTexts.end(),
+            [](const DamageText& text) { return text.isFinished(); }),
+        damageTexts.end()
+    );
+}
+
+void Enemy::drawDamageTexts(sf::RenderWindow& window) {
+    for (const auto& text : damageTexts) {
+        text.draw(window);
+    }
+}
+
 void Enemy::draw(sf::RenderWindow& window) {
     // Не рисуем врага, если анимация смерти завершена
     if (isDead() && deathAnimationFinished) {
@@ -777,4 +809,6 @@ void Enemy::draw(sf::RenderWindow& window) {
         targetMarker.setPosition(path[pathIndex]);
         window.draw(targetMarker);
     }
+
+    drawDamageTexts(window);
 }

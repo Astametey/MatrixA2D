@@ -3,6 +3,7 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
+    std::locale::global(std::locale("Russian"));
     // Устанавливаем рабочий каталог
     std::cout << "cerrent path " << std::filesystem::current_path() << std::endl;
 

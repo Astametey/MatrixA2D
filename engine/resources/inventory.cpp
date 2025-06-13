@@ -3,7 +3,7 @@
 
 Inventory::Inventory(sf::RenderWindow& window, Player& player)
     : window(window), player(player) {
-    // Инициализация слотов
+    std::setlocale(LC_ALL, "ru_RU.UTF-8");
     loadTextures();
     initSlots();
 
@@ -17,6 +17,15 @@ Inventory::Inventory(sf::RenderWindow& window, Player& player)
     pickupHintText.setFillColor(sf::Color::White);
 
     pickupHintText.setScale(0.5f, 0.5f); // Уменьшаем в 2 раза
+
+    tooltipText.setFont(font);
+    tooltipText.setCharacterSize(14);
+    tooltipText.setFillColor(sf::Color::White);
+
+    tooltipBackground.setFillColor(sf::Color(30, 30, 30, 240));
+    tooltipBackground.setOutlineColor(sf::Color(100, 100, 100));
+    tooltipBackground.setOutlineThickness(1.f);
+    tooltipBackground.setSize(sf::Vector2f(150, 80));
 }
 
 void Inventory::initSlots() {
@@ -180,12 +189,6 @@ sf::Vector2f Inventory::getSlotPosition(int x, int y) const {
     );
 }
 
-void Inventory::addGroundItem(std::unique_ptr<Item> item, const sf::Vector2f& position) {
-    item->setPosition(position);
-    item->isOnGround = true;
-    item->scaleToSize(16, 16);
-    groundItems.push_back(std::move(item));
-}
 
 void Inventory::toggleVisibility() {
     isVisible_ = !isVisible_;
@@ -196,60 +199,14 @@ void Inventory::toggleVisibility() {
 bool Inventory::isVisible() const {
     return isVisible_;
 }
-void Inventory::tryPickupItem(const sf::Vector2f& playerPos) {
+void Inventory::tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems) {
     for (auto it = groundItems.begin(); it != groundItems.end(); ) {
         float distance = std::sqrt(
             std::pow(playerPos.x - (*it)->sprite.getPosition().x, 2) +
             std::pow(playerPos.y - (*it)->sprite.getPosition().y, 2));
 
         if (distance <= pickupRadius_) {
-            // Создаем копию предмета
-            std::unique_ptr<Item> newItem;
-
-            // Для Armor и Weapon нужно сохранить оригинальные объекты
-            if ((*it)->type == ItemType::HELMET ||
-                (*it)->type == ItemType::BODY ||
-                (*it)->type == ItemType::LEGS ||
-                (*it)->type == ItemType::SHOES) {
-
-                ArmorItem* armorItem = dynamic_cast<ArmorItem*>(it->get());
-                if (armorItem) {
-                    newItem = std::make_unique<ArmorItem>(armorItem->armor, armorItem->type);
-                }
-            }
-            else if ((*it)->type == ItemType::WEAPON) {
-                WeaponItem* weaponItem = dynamic_cast<WeaponItem*>(it->get());
-                if (weaponItem) {
-                    newItem = std::make_unique<WeaponItem>(weaponItem->weapon, weaponItem->type);
-                }
-            }
-            else if ((*it)->type == ItemType::CONSUMABLE) {
-                ConsumableItem* consumable = dynamic_cast<ConsumableItem*>(it->get());
-
-                if (consumable) {
-                    auto newConsumable = std::make_unique<ConsumableItem>(
-                        consumable->name,
-                        consumable->healthRestore,
-                        consumable->isPotion);
-
-                    // Копируем текстуру
-                    newConsumable->texture = consumable->texture;
-                    newConsumable->sprite.setTexture(newConsumable->texture);
-                    newConsumable->sprite.setTextureRect(consumable->sprite.getTextureRect());
-                    newConsumable->getRect = consumable->getRect;
-
-                    newItem = std::move(newConsumable);
-                }
-            }
-
-            if (newItem) {
-                // Настраиваем размер и позицию
-                newItem->scaleToSize(SLOT_SIZE, SLOT_SIZE);
-                newItem->getRect = (*it)->getRect;
-                newItem->sprite.setTextureRect(newItem->getRect);
-
-                // Добавляем в инвентарь
-                addItem(std::move(newItem));
+            if (addItem(std::move(*it))) {
                 it = groundItems.erase(it);
             }
             else {
@@ -410,6 +367,11 @@ void Inventory::render() {
     if (draggingItem) {
         window.draw(draggingItem->sprite);
     }
+
+    if (showTooltip) {
+        window.draw(tooltipBackground);
+        window.draw(tooltipText);
+    }
 }
 void Inventory::renderUI() {
     // Рендерим слоты быстрого доступа
@@ -462,6 +424,9 @@ void Inventory::renderUI() {
         
     }
 
+    if (draggingItem) {
+        window.draw(draggingItem->sprite);
+    }
 
 }
 
@@ -509,6 +474,10 @@ void Inventory::update(float dt, sf::View& gui_view) {
             }
         }
     }
+    if (!isVisible_) {
+        showTooltip = false;
+        return;
+    }
 
     // Обновляем спрайт выделения
     if (isHoveringSlot) {
@@ -527,47 +496,6 @@ void Inventory::update(float dt, sf::View& gui_view) {
         }
         else {
             hoverSprite.setPosition(hoverSlotPosition);
-        }
-    }
-}
-
-void Inventory::GroundItemsrender() {
-    for (const auto& item : groundItems) {
-        float distance = std::sqrt(
-            std::pow(player.getPosition().x - item->sprite.getPosition().x, 2) +
-            std::pow(player.getPosition().y - item->sprite.getPosition().y, 2));
-
-        if (distance <= pickupRadius_) {
-            // Создаем outline эффект
-            outlineSprite = item->sprite; // Копируем оригинальный спрайт
-
-            // Увеличиваем немного размер для outline
-            outlineSprite.setScale(
-                item->sprite.getScale().x * 1.2f,
-                item->sprite.getScale().y * 1.2f
-            );
-
-            // Центрируем увеличенный спрайт
-            outlineSprite.setPosition(
-                item->sprite.getPosition().x - (outlineSprite.getGlobalBounds().width - item->sprite.getGlobalBounds().width) / 2,
-                item->sprite.getPosition().y - (outlineSprite.getGlobalBounds().height - item->sprite.getGlobalBounds().height) / 2
-            );
-
-            // Рисуем outline (белый спрайт)
-            outlineSprite.setColor(sf::Color::White);
-            window.draw(outlineSprite);
-
-            // Подсказка для подбора
-            pickupHintText.setString("E:" + item->name);
-            pickupHintText.setPosition(
-                item->sprite.getPosition().x,
-                item->sprite.getPosition().y - 20
-            );
-            window.draw(pickupHintText);
-        }
-        else {
-            // Обычная отрисовка, если предмет далеко
-            window.draw(item->sprite);
         }
     }
 }
@@ -628,10 +556,46 @@ void Inventory::handleEvent(const sf::Event& event, sf::View& gui_view) {
         handleKeyPress(event);
     }
 
-
     if (!isVisible_) return;
+
+    if (event.type == sf::Event::MouseMoved) {
+        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Vector2i(event.mouseMove.x, event.mouseMove.y), gui_view);
+
+        // Проверяем, наведена ли мышь на предмет
+        Item* hoveredItem = nullptr;
+
+        // Проверяем обычные слоты инвентаря
+        for (auto& item : items) {
+            if (item->sprite.getGlobalBounds().contains(mousePos)) {
+                hoveredItem = item.get();
+                break;
+            }
+        }
+
+        // Проверяем слоты быстрого доступа
+        if (!hoveredItem) {
+            for (int i = 0; i < 9; ++i) {
+                if (quickAccessItems[i] && quickAccessSlots[i].getGlobalBounds().contains(mousePos)) {
+                    hoveredItem = quickAccessItems[i].get();
+                    break;
+                }
+            }
+        }
+
+        // Проверяем экипированные предметы
+        if (!hoveredItem) {
+            if (equippedHelmet && helmetSlot.getGlobalBounds().contains(mousePos)) hoveredItem = equippedHelmet.get();
+            else if (equippedBody && bodySlot.getGlobalBounds().contains(mousePos)) hoveredItem = equippedBody.get();
+            else if (equippedLegs && legsSlot.getGlobalBounds().contains(mousePos)) hoveredItem = equippedLegs.get();
+            else if (equippedShoes && shoesSlot.getGlobalBounds().contains(mousePos)) hoveredItem = equippedShoes.get();
+        }
+
+        updateTooltip(mousePos);
+    }
+
     window.setView(oldView);
 }
+
 void Inventory::handleItemDrag(const sf::Event& event) {
     if (!draggingItem) return;
 
@@ -1125,14 +1089,17 @@ bool Inventory::addItemToFirstFreeSlot(std::unique_ptr<Item> item) {
 }
 
 void Inventory::equipWeaponFromQuickSlot(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 9 || !quickAccessItems[slotIndex]) return;
+
     // Сначала снимаем текущее оружие
     unequipCurrentWeapon();
 
-    // Если слот содержит оружие - экипируем его
-    if (quickAccessItems[slotIndex] &&
-        quickAccessItems[slotIndex]->type == ItemType::WEAPON) {
-        quickAccessItems[slotIndex]->equip(player);
+    // Экипируем новое оружие
+    WeaponItem* weaponItem = dynamic_cast<WeaponItem*>(quickAccessItems[slotIndex].get());
+    if (weaponItem) {
+        player.setWeapon(weaponItem->weapon);
         lastEquippedWeaponSlot = slotIndex;
+        std::cout << "Equipped weapon: " << weaponItem->name << std::endl;
     }
 }
 
@@ -1198,6 +1165,8 @@ bool Inventory::isQuickSlotPosition(const sf::Vector2f& pos) const {
     return false;
 }
 
+
+
 void Inventory::updateEquipmentAfterQuickSlotChange(int slotIndex) {
     // Если выбран пустой слот - снимаем оружие
     if (!quickAccessItems[slotIndex] ||
@@ -1209,4 +1178,166 @@ void Inventory::updateEquipmentAfterQuickSlotChange(int slotIndex) {
     else if (slotIndex == activeQuickSlot) {
         equipWeaponFromQuickSlot(slotIndex);
     }
+}
+void Inventory::updateTooltip(const sf::Vector2f& mousePos) {
+    showTooltip = false;
+
+    // Проверяем обычные слоты инвентаря
+    for (auto& item : items) {
+        if (item->sprite.getGlobalBounds().contains(mousePos)) {
+            createTooltipContent(item.get(), mousePos);
+            return;
+        }
+    }
+
+    // Проверяем слоты быстрого доступа
+    for (int i = 0; i < 9; ++i) {
+        if (quickAccessItems[i] && quickAccessSlots[i].getGlobalBounds().contains(mousePos)) {
+            createTooltipContent(quickAccessItems[i].get(), mousePos);
+            return;
+        }
+    }
+
+    // Проверяем экипированные предметы
+    if (helmetSlot.getGlobalBounds().contains(mousePos) && equippedHelmet) {
+        createTooltipContent(equippedHelmet.get(), mousePos);
+        return;
+    }
+    if (bodySlot.getGlobalBounds().contains(mousePos) && equippedBody) {
+        createTooltipContent(equippedBody.get(), mousePos);
+        return;
+    }
+    if (legsSlot.getGlobalBounds().contains(mousePos) && equippedLegs) {
+        createTooltipContent(equippedLegs.get(), mousePos);
+        return;
+    }
+    if (shoesSlot.getGlobalBounds().contains(mousePos) && equippedShoes) {
+        createTooltipContent(equippedShoes.get(), mousePos);
+        return;
+    }
+
+    // Проверяем пустые слоты экипировки
+    if (helmetSlot.getGlobalBounds().contains(mousePos)) {
+        return;
+    }
+    if (bodySlot.getGlobalBounds().contains(mousePos)) {
+        return;
+    }
+    if (legsSlot.getGlobalBounds().contains(mousePos)) {
+        return;
+    }
+    if (shoesSlot.getGlobalBounds().contains(mousePos)) {
+        return;
+    }
+
+    // Проверяем пустые слоты инвентаря
+    for (int y = 0; y < GRID_HEIGHT; ++y) {
+        for (int x = 0; x < GRID_WIDTH; ++x) {
+            sf::FloatRect slotRect(getSlotPosition(x, y),
+                sf::Vector2f(SLOT_SIZE, SLOT_SIZE));
+            if (slotRect.contains(mousePos)) {
+                return;
+            }
+        }
+    }
+
+    // Проверяем пустые слоты быстрого доступа
+    for (int i = 0; i < 9; ++i) {
+        if (quickAccessSlots[i].getGlobalBounds().contains(mousePos)) {
+            
+            return;
+        }
+    }
+}
+void Inventory::createTooltipContent(Item* item, const sf::Vector2f& mousePos) {
+    std::string tooltipStr;
+
+    // Базовая информация
+    tooltipStr = (item->name) + "\n";
+
+    // Информация в зависимости от типа предмета
+    switch (item->type) {
+    case ItemType::CONSUMABLE: {
+        auto consumable = dynamic_cast<ConsumableItem*>(item);
+        if (consumable) {
+            tooltipStr += "Материал\n";
+            tooltipStr += "Восстанавливает " + std::to_string(static_cast<int>(consumable->healthRestore)) + " ОЗ\n";
+            if (consumable->isPotion) {
+                tooltipStr += "Используемый - пкм\n";
+            }
+        }
+        break;
+    }
+    case ItemType::WEAPON: {
+        auto weapon = dynamic_cast<WeaponItem*>(item);
+        std::string str;
+        if (weapon) {
+            tooltipStr += "Урон: " + std::to_string(static_cast<int>(weapon->weapon.damage)) + "\n";
+            if (weapon->weapon.criticalChance > 0.01)
+            {
+                tooltipStr += "Шанс критического урона: " + std::to_string(static_cast<int>(weapon->weapon.criticalChance * 100)) + "%\n";
+            }
+            
+            if (weapon->weapon.attackSpeed < 100)
+            {
+                str = "Низкая\n";
+            }
+            if (weapon->weapon.attackSpeed > 100)
+            {
+                str = "Средняя\n";
+            }
+            if (weapon->weapon.attackSpeed > 150)
+            {
+                str = "Высокая\n";
+            }
+            if (weapon->weapon.attackSpeed > 200)
+            {
+                str = "Очень высокая\n";
+            }
+            if (weapon->weapon.attackSpeed > 250)
+            {
+                str = "Безумная\n";
+            }
+            tooltipStr += "Скорость атаки: " + str;
+            
+        }
+        break;
+    }
+    case ItemType::HELMET:
+    case ItemType::BODY:
+    case ItemType::LEGS:
+    case ItemType::SHOES: {
+        auto armor = dynamic_cast<ArmorItem*>(item);
+        if (armor) {
+            tooltipStr += "Защита: " + std::to_string(static_cast<int>(armor->armor.defense)) + "\n";
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    if (item->isStackable) {
+        tooltipStr += "Кол-во: " + std::to_string(item->stackSize) + "/" + std::to_string(item->maxStackSize) + "\n";
+    }
+
+    setupTooltipVisuals(tooltipStr, mousePos);
+}
+void Inventory::createEmptySlotTooltip(const std::string& slotName, const sf::Vector2f& mousePos) {
+    std::string tooltipStr = slotName + "\n";
+    setupTooltipVisuals(tooltipStr, mousePos);
+}
+void Inventory::setupTooltipVisuals(const std::string& text, const sf::Vector2f& mousePos) {
+    tooltipText.setString(text);
+
+    // Позиционируем tooltip рядом с курсором
+    tooltipPosition = mousePos + sf::Vector2f(20.f, 20.f);
+    tooltipText.setPosition(tooltipPosition);
+
+    // Настраиваем фон tooltip
+    sf::FloatRect textBounds = tooltipText.getLocalBounds();
+    tooltipBackground.setSize(sf::Vector2f(textBounds.width + 10.f, textBounds.height + 10.f));
+    tooltipBackground.setPosition(tooltipPosition - sf::Vector2f(5.f, 5.f));
+
+    showTooltip = true;
 }
