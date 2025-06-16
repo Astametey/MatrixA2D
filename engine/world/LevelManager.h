@@ -18,7 +18,8 @@ private:
     LevelData* currentLevelData = nullptr;
 
     void InitItemTemplates();
-    
+    void InitArmorTemplates();
+    void InitConsumableTemplates();
 
 public:
     std::unique_ptr<Item> CreateItemFromTemplate(const std::string& name,

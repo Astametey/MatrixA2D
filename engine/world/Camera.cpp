@@ -3,6 +3,8 @@
 // Определение глобальных переменных
 sf::View main_view;
 sf::View gui_view;
+sf::FloatRect levelBounds;
+
 int LEVEL_WIDTH = 0;
 int LEVEL_HEIGHT = 0;
 

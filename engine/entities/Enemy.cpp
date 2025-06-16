@@ -41,12 +41,12 @@ Enemy::Enemy(float x, float y, float width, float height, Level& lvl, const std:
 void Enemy::Set_type_enemy(std::string type) {
     if (type == "orc") {
         setCollisionSize(16, 16);
-        setMaxHealth(10);
-
+        setMaxHealth(25);
         if (!texture.loadFromFile("resources/textures/entities/enemies/Orc-Sheet.png")) {
             shape.setFillColor(sf::Color::Green);
         }
         else {
+            speed = 90.f;
             sprite.setTexture(texture);
             frameWidth = 38;
             frameHeight = 33;
@@ -84,7 +84,7 @@ void Enemy::Set_type_enemy(std::string type) {
         }
     }
     if (type == "cat") {
-        setCollisionSize(16, 16);
+        setCollisionSize(8, 16);
         setMaxHealth(5);
 
         if (!texture.loadFromFile("resources/textures/entities/enemies/cat.png")) {
@@ -108,6 +108,8 @@ void Enemy::Set_type_enemy(std::string type) {
 }
 
 void Enemy::takeDamage(int damage, int weaponDMG) {
+    if (damage <= 0) return;
+    
     if (isDead() || currentState == AnimationType::Death)
         return;
     bool isCritical = false;
@@ -193,9 +195,9 @@ void Enemy::update(float deltaTime, Player& player, const std::vector<std::uniqu
 
     // Проверка столкновения со снарядами игрока
     for (auto& projectile : player.getProjectiles()) {
-        if (!projectile.hit && getGlobalBounds().intersects(projectile.shape.getGlobalBounds())) {
-            takeDamage(player.getAttackDamage(), player.rangedWeapon.damage * 2);
-
+        if (getGlobalBounds().intersects(projectile.shape.getGlobalBounds())) {
+            int damage = player.getRangedDamage();
+            takeDamage(damage, player.rangedWeapon.damage);
             // Применяем отталкивание от снаряда
             sf::Vector2f direction = position - projectile.shape.getPosition();
             float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);

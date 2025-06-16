@@ -199,23 +199,53 @@ void Inventory::toggleVisibility() {
 bool Inventory::isVisible() const {
     return isVisible_;
 }
-void Inventory::tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems) {
+void Inventory::tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems, float deltaTime) {
     for (auto it = groundItems.begin(); it != groundItems.end(); ) {
-        float distance = std::sqrt(
-            std::pow(playerPos.x - (*it)->sprite.getPosition().x, 2) +
-            std::pow(playerPos.y - (*it)->sprite.getPosition().y, 2));
+        sf::Vector2f itemPos = (*it)->sprite.getPosition();
+        float distance = std::sqrt(std::pow(playerPos.x - itemPos.x, 2) +
+            std::pow(playerPos.y - itemPos.y, 2));
 
-        if (distance <= pickupRadius_) {
-            if (addItem(std::move(*it))) {
-                it = groundItems.erase(it);
+        // Параметры системы сбора
+        const float maxAttractRadius = 64.0f;  // Максимальный радиус притяжения
+        const float minAttractRadius = 4.0f;   // Радиус автоматического сбора
+        const float maxSpeed = 200.0f;          // Максимальная скорость движения
+        const float minSpeed = 60.0f;           // Минимальная скорость движения
+
+        // Для обычных предметов или ударенных растений
+        if (!(*it)->isPlant || ((*it)->isPlant && !(*it)->canBeHit)) {
+            // Автоматический сбор при близком расстоянии
+            if (distance <= minAttractRadius) {
+                
+                
+                if (addItem(std::move(*it))) {
+                    it = groundItems.erase(it);
+                    continue;
+                }
             }
-            else {
-                ++it;
+            // Движение к игроку на средних расстояниях
+            else if (distance <= maxAttractRadius) {
+                // Вычисляем направление к игроку
+                sf::Vector2f direction = playerPos - itemPos;
+                float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+                if (length > 0) direction /= length; // Нормализуем вектор
+
+                // Рассчитываем скорость в зависимости от расстояния (чем ближе - тем быстрее)
+                float speedFactor = 1.0f - (distance - minAttractRadius) /
+                    (maxAttractRadius - minAttractRadius);
+                float currentSpeed = minSpeed + (maxSpeed - minSpeed) * speedFactor;
+
+
+                // Двигаем предмет
+                (*it)->sprite.move(direction * currentSpeed * deltaTime);
+
+                // Небольшой случайный фактор для более натурального движения
+                float randomAngle = (std::rand() % 100 - 50) * 0.01f;
+                sf::Transform rotation;
+                rotation.rotate(randomAngle);
+                direction = rotation * direction;
             }
         }
-        else {
-            ++it;
-        }
+        ++it;
     }
 }
 bool Inventory::tryMergeStacks(Item& source, Item& target) {
@@ -434,6 +464,7 @@ void Inventory::update(float dt, sf::View& gui_view) {
     hoveredGridX = -1;
     hoveredGridY = -1;
     isHoveringSlot = false;
+
 
     if (isVisible_) {
         sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window), gui_view);
@@ -1311,6 +1342,7 @@ void Inventory::createTooltipContent(Item* item, const sf::Vector2f& mousePos) {
         if (armor) {
             tooltipStr += "Защита: " + std::to_string(static_cast<int>(armor->armor.defense)) + "\n";
         }
+        tooltipStr += armor->armor.item_description + "\n";
         break;
     }
     default:

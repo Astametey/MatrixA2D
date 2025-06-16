@@ -1,15 +1,16 @@
 #include "Engine.h"
 
-Engine::Engine() : m_window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "MatrixA2D", sf::Style::Default),
+Engine::Engine() : m_window(sf::VideoMode(SCREEN_WIDTH* SCALE, SCREEN_HEIGHT* SCALE), "MatrixA2D", sf::Style::Default),
 player(32, 32, 16, 16, 16, 32), inventory(m_window, player), rng(std::random_device()())
 {
+    
     cameraVelocity = sf::Vector2f(0, 0);
 
     m_window.setFramerateLimit(60);
     levelManager.LoadAllLevels();
 
 
-    gui_view.reset(sf::FloatRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT));
+    gui_view.reset(sf::FloatRect(0, 0, SCREEN_WIDTH * SCALE, SCREEN_HEIGHT * SCALE));
     gui_view.setViewport(sf::FloatRect(0, 0, 1, 1)); // Занимает весь экран
     
 
@@ -55,11 +56,29 @@ void Engine::handleEvents(float deltaTime) {
             if (event.key.code == sf::Keyboard::Tab) {
                 inventory.toggleVisibility();
             }
-            if (event.key.code == sf::Keyboard::E) {
-                inventory.tryPickupItem(player.getPosition(), levelManager.GetCurrentGroundItems());
-            }
-        }
 
+            if (event.key.code == sf::Keyboard::E)
+            {
+                // Проверяем, попал ли удар по растению
+                for (auto& item : levelManager.GetCurrentGroundItems()) {
+                    item->update(deltaTime);
+                    if (item->isPlant) {
+
+
+                        float distSq = (player.getPosition().x - item->sprite.getPosition().x) * (player.getPosition().x - item->sprite.getPosition().x) +
+                            (player.getPosition().y - item->sprite.getPosition().y) * (player.getPosition().y - item->sprite.getPosition().y);
+                        if (distSq < 32 * 32) {
+                            item->canBeHit = false;
+                        }
+
+                    }
+                }
+            }
+           
+
+        }
+        
+            
         // Передаем события инвентарю, если он видим
         
             m_window.setView(gui_view); // Устанавливаем gui_view перед обработкой
@@ -94,6 +113,17 @@ void Engine::update(float deltaTime) {
             // Здесь можно добавить логику получения урона игроком
         }
     }
+
+    // Обновляем предметы на земле
+    for (auto it = levelManager.GetCurrentGroundItems().begin();
+        it != levelManager.GetCurrentGroundItems().end(); ) {
+        auto& item = *it;
+
+        ++it;
+    }
+
+    // Автоматический сбор предметов
+    inventory.tryPickupItem(player.getPosition(), levelManager.GetCurrentGroundItems(), deltaTime);
 
     // Обновление игрока
     player.update(deltaTime);
@@ -136,7 +166,7 @@ void Engine::render(float deltaTime) {
     auto objectsToRender = levelManager.GetCurrentLevel()->GetObjectsForRendering(viewBounds, player.getPosition());
 
     // 3. Рендерим объекты и сущности в правильном порядке
-    auto playerBottom = player.getPosition().y + player.getCollisionSize().y / 2;
+    auto playerBottom = player.getPosition().y + 13;
 
     for (size_t i = 0; i < objectsToRender.size(); ++i) {
         auto* object = objectsToRender[i];
@@ -144,7 +174,7 @@ void Engine::render(float deltaTime) {
 
         // Если объект должен быть отрисован перед игроком
         if (objectBottom < playerBottom) {
-            levelManager.GetCurrentLevel()->DrawObject(*object, viewBounds, &m_window);
+            levelManager.GetCurrentLevel()->DrawObject(*object, viewBounds, &m_window); 
         }
 
         // Если между этим и следующим объектом нужно нарисовать врагов
@@ -159,22 +189,10 @@ void Engine::render(float deltaTime) {
                     enemy->draw(m_window);
                 }
             }
-        }
+        } 
     }
     for (auto& item : levelManager.GetCurrentGroundItems()) {
-        float distance = std::sqrt(
-            std::pow(player.getPosition().x - item->sprite.getPosition().x, 2) +
-            std::pow(player.getPosition().y - item->sprite.getPosition().y, 2));
-
-        if (distance > 32) {
-            // Можно добавить эффект "пульсации" предмета
-            float scale = 1.0f + 0.1f * std::sin(deltaTime * 6.0f);
-            item->sprite.setScale(scale, scale);
-        }
-        else {
-            item->sprite.setScale(1.0f, 1.0f);
-        }
-
+        
         m_window.draw(item->sprite);
     }
     // 4. Рендерим игрока
@@ -182,10 +200,10 @@ void Engine::render(float deltaTime) {
 
     // 5. Рендерим объекты, которые должны быть всегда перед игроком
     for (auto* object : objectsToRender) {
-        float objectBottom = object->rect.top + object->rect.height;
+        float objectBottom = object->rect.top + object->rect.height; 
         if (objectBottom >= playerBottom) {
             levelManager.GetCurrentLevel()->DrawObject(*object, viewBounds, &m_window);
-        }
+        } 
     }
 
     // 6. Рендерим врагов, которые должны быть перед игроком
@@ -220,6 +238,10 @@ void Engine::initResources() {
     auto sword = levelManager.CreateItemFromTemplate("steel_sword", { 0,0 });
     if (sword) {
         inventory.addItem(std::move(sword));
+    }
+    auto helmet = levelManager.CreateItemFromTemplate("iron_helmet", { 100,260 });
+    if (helmet) {
+        levelManager.GetCurrentGroundItems().push_back(std::move(helmet));
     }
 }
 void Engine::HandleLevelTransitions() {

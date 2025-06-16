@@ -25,6 +25,11 @@ public:
     bool isOnGround = false;
     bool isEquipped = false;
     bool isStackable = false;
+    bool canBeHit = true; // Новый флаг вместо wasHit
+    float hitCooldown = 0.3f; // Защита от повторных попаданий
+    float currentHitCooldown = 0.0f;
+
+    bool isPlant = false; // Является ли предмет растением (грибом)
     int stackSize = 1;
     int maxStackSize = 1;
 
@@ -59,6 +64,16 @@ public:
         }
     }
 
+    void update(float deltaTime)
+    {
+        if (!canBeHit) {
+            currentHitCooldown -= deltaTime;
+            if (currentHitCooldown <= 0) {
+                canBeHit = true;
+            }
+        }
+    }
+
     void scaleToSize(float width, float height) {
         sf::FloatRect bounds = sprite.getLocalBounds();
         if (bounds.width > 0 && bounds.height > 0) {  // Защита от деления на 0
@@ -84,6 +99,7 @@ public:
         isPotion = potion;
         isStackable = true;
         maxStackSize = 99;
+        texture.setSmooth(false);
     }
 
     void equip(Player& player) override {
@@ -107,6 +123,7 @@ public:
         clone->isStackable = this->isStackable;
         clone->maxStackSize = this->maxStackSize;
         clone->stackSize = this->stackSize;
+        clone->isPlant = this->isPlant;
         return clone;
     }
 };
@@ -114,14 +131,21 @@ public:
 class ArmorItem : public Item {
 public:
     Armor armor;
+    sf::Texture texture;
 
     ArmorItem(const Armor& armor, ItemType item_tipe) : armor(armor) {
         type = item_tipe;
         name = armor.name;
 
-        sprite.setTextureRect(armor.sprite.getTextureRect());
-        getRect = armor.sprite.getTextureRect();
-
+        if (!texture.loadFromFile(armor.texturePath)) {
+            std::cerr << "Failed to load weapon texture: " << armor.texturePath << std::endl;
+        }
+        else {
+            texture.setSmooth(false);
+            sprite.setTextureRect(armor.sprite.getTextureRect());
+            getRect = armor.sprite.getTextureRect();
+            sprite.setTexture(texture);
+        }
         
     }
 
@@ -167,12 +191,17 @@ public:
 
     std::unique_ptr<Item> Clone() const override {
         auto clone = std::make_unique<ArmorItem>(armor, type);
-        clone->sprite = this->sprite;
-        clone->isStackable = this->isStackable;
-        clone->maxStackSize = this->maxStackSize;
-        clone->stackSize = this->stackSize;
+
+        if (!clone->texture.loadFromFile(armor.texturePath)) {
+            std::cerr << "Failed to reload texture in clone: " << armor.texturePath << std::endl;
+        }
+        clone->sprite.setTexture(clone->texture);
+        clone->sprite.setTextureRect(this->sprite.getTextureRect());
+        clone->sprite.setPosition(this->sprite.getPosition());
+        clone->sprite.setScale(this->sprite.getScale());
         return clone;
     }
+
 
 };
 
@@ -218,6 +247,8 @@ public:
         clone->sprite.setTextureRect(this->sprite.getTextureRect());
         clone->sprite.setPosition(this->sprite.getPosition());
         clone->sprite.setScale(this->sprite.getScale());
+        clone->weapon.attackSpeed = this->weapon.attackSpeed;
+        
         return clone;
     }
 };
@@ -251,7 +282,7 @@ public:
     void selectQuickSlot(int slotIndex);
     void useActiveQuickSlotItem();
     void toggleVisibility();
-    void tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems);
+    void tryPickupItem(const sf::Vector2f& playerPos, std::vector<std::unique_ptr<Item>>& groundItems, float deltaTime);
     bool isVisible() const;
     bool moveArmorToSlot(std::unique_ptr<Item> item, ItemType armorType);
 

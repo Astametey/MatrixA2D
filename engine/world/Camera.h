@@ -9,8 +9,9 @@ extern sf::View gui_view;
 extern sf::FloatRect viewBounds;
 
 // Глобальные константы
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const unsigned int SCREEN_WIDTH = 320;
+const unsigned int SCREEN_HEIGHT = 180;
+const unsigned int SCALE = 4; // Масштаб для увеличения
 extern int LEVEL_WIDTH;  // Объявление
 extern int LEVEL_HEIGHT; // Объявление
 

@@ -46,7 +46,6 @@
  </layer>
  <objectgroup id="3" name="PickupItem_object_layer">
   <object id="14" name="steel_sword" type="pickup" gid="901" x="400.212" y="216.697" width="16" height="16"/>
-  <object id="15" name="iron_bow" type="pickup" gid="902" x="479.788" y="215.849" width="16" height="16"/>
   <object id="25" name="blood_mushroom" type="pickup" gid="7" x="305" y="60" width="32" height="32"/>
   <object id="26" name="blood_mushroom" type="pickup" gid="7" x="252.5" y="152.5" width="32" height="32"/>
   <object id="27" name="blood_mushroom" type="pickup" gid="7" x="217" y="104.5" width="32" height="32"/>

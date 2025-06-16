@@ -5,6 +5,7 @@ Level::Level()
 	width(0), height(0),
 	firstTileID(0)
 {
+	tileMap_texture.setSmooth(false);
 	// Дополнительная инициализация, если нужна
 }
 
@@ -256,14 +257,27 @@ void Level::LoadObjects(TiXmlElement* map) {
 			else {
 				//std::cout << "Object has no properties." << std::endl;
 			}
-			if (object.name == "wall" || object.name == "tree") {
+			if (object.name == "wall") {
 				object.alwaysBehind = true;
 				object.rect.top += 32;
 			}
-			else if (object.name == "Barrel") {
+			else if (object.name == "Barrel" || 
+				object.name == "172_wood_house_wall" || object.name == "173_wood_house_wall" || object.name == "174_wood_house_wall" ||
+
+				object.name == "142_wood_house_wall" || object.name == "112_wood_house_wall" || object.name == "113_wood_house_wall" || object.name == "114_wood_house_wall" || object.name == "143_wood_house_wall" ||
+
+				object.name == "691_dange_1_wall" || object.name == "753_dange_1_wall" || object.name == "754_dange_1_wall" || object.name == "755_dange_1_wall" || object.name == "756_dange_1_wall" || object.name == "783_dange_1_wall" || object.name == "757_dange_1_wall" || object.name == "" || object.name == "784_dange_1_wall" ||
+				
+				object.name == "5_grass_begind"
+				) {
+				
 				object.alwaysBehind = false; // Эти объекты могут быть и перед и за игроком
-				object.rect.width = 28;
-				object.rect.height = 28;
+
+				// Установка специальных размеров только для бочки
+				if (object.name == "Barrel") {
+					object.rect.width = 28;
+					object.rect.height = 28;
+				}
 			}
 			objects.push_back(object);
 			//std::cout << "Object added to the objects vector." << std::endl;
@@ -311,7 +325,7 @@ void Level::DrawTiles(const sf::FloatRect& viewBounds, sf::RenderWindow* window)
 					tileWidth,          // Ширина тайла
 					tileHeight          // Высота тайла
 				));
-				tileMap_sprite.setPosition(w * tileWidth, h * tileHeight);
+				tileMap_sprite.setPosition(static_cast<int>(w * tileWidth), static_cast<int>(h * tileHeight));
 				if (adjustedBounds.intersects(tileMap_sprite.getGlobalBounds())) {
 					window->draw(tileMap_sprite);
 				}
@@ -356,19 +370,81 @@ void Level::DrawLayerByName(const std::string& layerName, const sf::FloatRect& v
 }
 
 void Level::DrawObject(const Object& object, const sf::FloatRect& viewBounds, sf::RenderWindow* window) {
-	if (object.name == "Barrel") {
-		// Правильное позиционирование бочки
-		sf::Vector2f drawPos(object.rect.left, object.rect.top - object.rect.height + 32);
-		tileMap_sprite.setTextureRect(sf::IntRect(256, 0, tileWidth, tileHeight));
-		tileMap_sprite.setPosition(drawPos);
+	// Общие параметры для всех объектов
+	sf::Vector2f drawPos(object.rect.left, object.rect.top - object.rect.height + 32);
+	sf::FloatRect objectBounds(drawPos.x, drawPos.y, object.rect.width, object.rect.height);
 
-		if (viewBounds.intersects(sf::FloatRect(drawPos.x, drawPos.y,
-			object.rect.width, object.rect.height))) {
-			window->draw(tileMap_sprite);
-		}
+	// Проверка видимости (общая для всех объектов)
+	if (!viewBounds.intersects(objectBounds)) {
+		return;
 	}
-}
 
+	// Установка позиции спрайта (общая для всех объектов)
+	tileMap_sprite.setPosition(drawPos);
+
+	// Выбор текстуры в зависимости от типа объекта 
+	if (object.name == "Barrel") {
+		tileMap_sprite.setTextureRect(sf::IntRect(256, 0, tileWidth, tileHeight));
+	}
+	//house wood
+	else if (object.name == "172_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(704, 160, tileWidth, tileHeight));
+	}
+	else if (object.name == "173_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(736, 160, tileWidth, tileHeight));
+	} 
+	else if (object.name == "174_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(768, 160, tileWidth, tileHeight));
+	}
+	else if (object.name == "142_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(704, 128, tileWidth, tileHeight));
+	}
+	else if (object.name == "112_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(704, 96, tileWidth, tileHeight));
+	}
+	else if (object.name == "113_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(736, 96, tileWidth, tileHeight));
+	}
+	else if (object.name == "114_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(768, 96, tileWidth, tileHeight));
+	}
+	else if (object.name == "143_wood_house_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(736, 128, tileWidth, tileHeight));
+	}
+	//grass
+	else if (object.name == "5_grass_begind") {
+		tileMap_sprite.setTextureRect(sf::IntRect(160, 0 + (32 || 64), tileWidth, tileHeight));
+	}
+	//dange
+	else if (object.name == "691_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(32, 736, tileWidth, tileHeight));
+	}
+	else if (object.name == "753_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(96, 800, tileWidth, tileHeight));
+	}
+	else if (object.name == "783_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(96, 832, tileWidth, tileHeight));
+	}
+	else if (object.name == "757_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(224, 800, tileWidth, tileHeight));
+	}
+	else if (object.name == "784_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(128, 832, tileWidth, tileHeight));
+	}
+	else if (object.name == "754_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(128, 800, tileWidth, tileHeight));
+	}
+	else if (object.name == "755_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(160, 800, tileWidth, tileHeight));
+	}
+	else if (object.name == "756_dange_1_wall") {
+		tileMap_sprite.setTextureRect(sf::IntRect(192, 800, tileWidth, tileHeight));
+	}
+	else {
+		return; // Неизвестный объект
+	}
+	window->draw(tileMap_sprite);
+}
 void Level::DrawObjectsBehindPlayer(const sf::FloatRect& viewBounds, sf::RenderWindow* window) {
 	// Рисуем объекты, которые всегда должны быть под игроком
 	for (const auto& object : objects) {

@@ -11,11 +11,6 @@
 #include "resources/inventory.h"
 #include "world/LevelManager.h"
 
-struct DrawableEntity {
-    sf::Drawable* drawable;
-    float yPosition;
-};
-
 
 class Engine {
 public: 
@@ -40,6 +35,7 @@ private:
     const int maxEnemies = 5; // Максимальное количество врагов
     std::mt19937 rng; // Генератор случайных чисел
 
+    
     sf::RenderWindow m_window;
     
 
@@ -55,7 +51,9 @@ private:
     // mouse pos in view
     sf::Vector2f worldPos;
 
-    //init Resources
+    //location
+
     
     
 };
+

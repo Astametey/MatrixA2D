@@ -31,7 +31,7 @@ void Entity::update(float deltaTime) {
 sf::FloatRect Entity::getGlobalBounds() const {
     return sf::FloatRect(
         position.x - collisionSize.x / 2,
-        position.y - collisionSize.y / 2,
+        position.y - collisionSize.y,
         collisionSize.x,
         collisionSize.y
     );

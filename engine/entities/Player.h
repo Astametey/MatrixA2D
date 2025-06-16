@@ -32,6 +32,7 @@ struct ProjectileData {
 // struct armor
 struct Armor {
     std::string name;
+    std::string item_description;
     float defense; 
     sf::Texture texture;
     sf::Sprite sprite;
@@ -39,7 +40,19 @@ struct Armor {
     sf::Vector2f offset;
     sf::Vector2f set_rect_xy;
 
+    std::string texturePath;
+
     Armor() : name(""), defense(0.0f), offset(0, 0) {}
+
+    Armor(const std::string& path) :
+        texturePath(path)
+    {
+        // Загружаем текстуру сразу
+        if (!texture.loadFromFile(texturePath)) {
+            std::cerr << "Failed to load weapon texture: " << texturePath << std::endl;
+        }
+    }
+
 
     bool loadTexture(const std::string& filename) {
         if (!texture.loadFromFile(filename)) {
@@ -66,6 +79,10 @@ struct Armor {
         sprite.setTextureRect(sf::IntRect(x, y, w, h));
     }
 
+    void setTextureRect(int left, int top, int width, int height) {
+        sprite.setTextureRect(sf::IntRect(left, top, width, height));
+    }
+
     sf::Sprite HandGetTexture()
     {
         return handSprite;
@@ -82,6 +99,7 @@ struct Weapon {
     };
 
     std::string name;
+    std::string item_description;
     Type type;
     float damage;
     float attackSpeed = 200;
@@ -264,6 +282,10 @@ public:
     void updateDamageTexts(float deltaTime);
     void drawDamageTexts(sf::RenderWindow& window);
     void takeDamage(int damage);
+    float getRangedDamage() const;
+
+
+    bool isAutoAttacking = false;
 private:
 
     // Анимационные переменные
@@ -288,7 +310,7 @@ private:
 
     // Поля для атаки
     
-    bool isAutoAttacking = false;
+    
     float attackAngle = 0.f; // Текущий угол атаки
     float attackSpeed = 300.f; // Скорость атаки (градусов в секунду)
     float attackCooldown = 0.3f; // Задержка между атаками

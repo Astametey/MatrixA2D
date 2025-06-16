@@ -4,19 +4,19 @@ project(MatrixA2D)
 set(CMAKE_CXX_STANDARD 20)  
 
 # 1. Вариант с ручным указанием путей (надежнее)
-set(SFML_ROOT "D:/SFML")  # Укажите ваш реальный путь 
+set(SFML_ROOT "D:/SFML")  # Укажите ваш реальный путь  
 set(SFML_INCLUDE_DIR "${SFML_ROOT}/include")   
-set(SFML_LIBRARY_DIR "${SFML_ROOT}/lib")  
+set(SFML_LIBRARY_DIR "${SFML_ROOT}/lib")
  
-# Ищем библиотеки вручную 
-find_path(SFML_INCLUDE_DIR "SFML/Graphics.hpp" PATHS ${SFML_INCLUDE_DIR})
-find_library(SFML_GRAPHICS_LIBRARY "sfml-graphics" PATHS ${SFML_LIBRARY_DIR})
-find_library(SFML_WINDOW_LIBRARY "sfml-window" PATHS ${SFML_LIBRARY_DIR}) 
-find_library(SFML_SYSTEM_LIBRARY "sfml-system" PATHS ${SFML_LIBRARY_DIR})
-find_library(SFML_AUDIO_LIBRARY "sfml-audio" PATHS ${SFML_LIBRARY_DIR})
+# Ищем библиотеки вручную  
+find_path(SFML_INCLUDE_DIR "SFML/Graphics.hpp" PATHS ${SFML_INCLUDE_DIR})  
+find_library(SFML_GRAPHICS_LIBRARY "sfml-graphics" PATHS ${SFML_LIBRARY_DIR})  
+find_library(SFML_WINDOW_LIBRARY "sfml-window" PATHS ${SFML_LIBRARY_DIR})  
+find_library(SFML_SYSTEM_LIBRARY "sfml-system" PATHS ${SFML_LIBRARY_DIR}) 
+find_library(SFML_AUDIO_LIBRARY "sfml-audio" PATHS ${SFML_LIBRARY_DIR})   
 
-if(NOT SFML_INCLUDE_DIR OR NOT SFML_GRAPHICS_LIBRARY)
-    message(FATAL_ERROR "SFML not found. Check SFML_ROOT path")
+if(NOT SFML_INCLUDE_DIR OR NOT SFML_GRAPHICS_LIBRARY) 
+    message(FATAL_ERROR "SFML not found. Check SFML_ROOT path")  
 endif()
 
 # Настройки компилятора

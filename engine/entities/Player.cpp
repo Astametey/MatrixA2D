@@ -11,7 +11,7 @@ Player::Player(float x, float y, float collisionWidth, float collisionHeight, fl
     attackDuration = 0.30f; // Уменьшена длительность атаки для более резкого движения
     attackStartAngle = 180.f; // Рука начинается сбоку
     attackEndAngle = -10.f;   // Рука заканчивает перед собой
-
+    
     visualSize = sf::Vector2f(visualWidth, visualHeight);
     shape.setSize(visualSize);
 
@@ -19,7 +19,7 @@ Player::Player(float x, float y, float collisionWidth, float collisionHeight, fl
     setHair.y = 0;
     setEye.x = 0;
     setEye.y = 1; 
-
+    texture.setSmooth(false);
 
     if (!texture.loadFromFile("resources/textures/entities/player/player_body.png")) {
         shape.setFillColor(sf::Color::Green);
@@ -125,6 +125,12 @@ void Player::update(float deltaTime) {
 
 
 void Player::setArmorHead(const Armor& armor) {
+    
+    if (armor.texture.getSize().x == 0) {
+        std::cerr << "Cannot equip armorHead - texture not loaded: " << armorHead.name << std::endl;
+        return;
+    }
+    std::cout << "Setting melee weapon: " << armorHead.name << "\n";
     armorHead = armor;
     armorHead.sprite.setTexture(armor.texture);
     armorHead.sprite.setOrigin(sprite.getGlobalBounds().width / 2, sprite.getGlobalBounds().height / 2);
@@ -160,12 +166,9 @@ void Player::setWeapon(const Weapon& weapon) {
 
     if (weapon.type == Weapon::Type::MELEE)
     {
-        std::cout << "Setting melee weapon: " << weapon.name
-            << ", texture size: " << weapon.texture.getSize().x
-            << "x" << weapon.texture.getSize().y << "\n";
         backHandSprite.setRotation(0);
         frontHandSprite.setRotation(0);
-        std::cout << "Setting melee weapon: " << weapon.name << "\n";
+        //std::cout << "Setting melee weapon: " << weapon.name << "\n";
         meleeWeapon = weapon;
         attackSpeed = meleeWeapon.attackSpeed;
         meleeWeapon.sprite.setTexture(weapon.texture);
@@ -177,10 +180,7 @@ void Player::setWeapon(const Weapon& weapon) {
     }
     else
     {
-        std::cout << "Setting ranged weapon: " << weapon.name
-            << ", texture size: " << weapon.texture.getSize().x
-            << "x" << weapon.texture.getSize().y << "\n";
-        std::cout << "Setting ranged weapon: " << weapon.name << "\n";
+        //std::cout << "Setting ranged weapon: " << weapon.name << "\n";
         rangedWeapon = weapon;
         rangedWeapon.sprite.setTexture(weapon.texture);
         attackSpeed = rangedWeapon.attackSpeed;
@@ -352,6 +352,18 @@ float Player::getAttackDamage(bool useMelee) const {
     }
 
     return baseDamage;
+}
+float Player::getRangedDamage() const {
+    float baseDamage = rangedWeapon.damage;
+    // Добавляем модификаторы от брони/умений
+    float totalDamage = baseDamage;
+
+    // Проверка на критический удар
+    if (rand() / (float)RAND_MAX < rangedWeapon.criticalChance) {
+        totalDamage *= 2.0f;  // Критический урон
+    }
+
+    return totalDamage;
 }
 sf::FloatRect Player::getWeaponCollisionBounds() const {
     if (isMeleeEquipped()) {
